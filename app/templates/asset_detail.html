@@ -1,0 +1,486 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}{{ asset.name }} · Patrimonio{% endblock %}
+{% block content %}
+
+<a class="btn ghost small back-link" href="/activos">{{ icon("chevron-left", 15) }} Volver a activos</a>
+
+<section class="card detail-head">
+    <div class="detail-head-info">
+        <h2>{{ avatar(asset, 34) }} {{ asset.name }}</h2>
+        <div class="badges">
+            {% if asset.asset_type.value == "cuenta_bancaria" %}<span class="tag">{{ icon("banknote", 13) }} Cuenta</span>
+            {% elif asset.asset_type.value == "accion_etf_fondo" %}<span class="tag accent">{{ icon("trending-up", 13) }} Inversión</span>
+            {% elif asset.asset_type.value == "criptomoneda" %}<span class="tag warning">{{ icon("coins", 13) }} Cripto</span>
+            {% else %}<span class="tag">{{ icon("tag", 13) }} Otro</span>{% endif %}
+            {% if asset.ticker %}<span class="tag">{{ icon("search", 12) }} {{ asset.ticker }}</span>{% endif %}
+            {% if asset.isin %}<span class="tag">{{ asset.isin }}</span>{% endif %}
+            <span class="tag">{{ asset.currency.value }}</span>
+            {% if asset.exposure_currency %}<span class="tag" title="Divisa de exposición: el subyacente va en {{ asset.exposure_currency }} aunque cotice en {{ asset.currency.value }}">→ {{ asset.exposure_currency }}</span>{% endif %}
+            {% if asset.region %}<span class="tag">{{ asset.region }}</span>{% endif %}
+            {% if asset.sector %}<span class="tag">{{ asset.sector }}</span>{% endif %}
+        </div>
+    </div>
+    <div class="detail-head-value">
+        <p class="big-number"><span data-money="{{ value_base }}" data-cur="{{ base_currency }}">{{ value_base|dinero }} <small>{{ base_currency }}</small></span></p>
+        {% if summary and summary.unrealized is not none %}
+        <p class="day-change {{ 'positive' if summary.unrealized >= 0 else 'negative' }}">
+            <span data-money="{{ summary.unrealized }}" data-cur="{{ asset.currency.value }}">{{ summary.unrealized|dinero }} {{ asset.currency.value }}</span>
+            {% if summary.pnl_pct is not none %}({{ "%+.2f"|format(summary.pnl_pct) }}%){% endif %}
+            {% if summary.fx_effect_pct is not none %}<span title="Efecto del tipo de cambio, aparte del P&L de precio">· divisa {{ "%+.2f"|format(summary.fx_effect_pct) }}%</span>{% endif %}
+        </p>
+        {% elif summary and summary.position.has_operations and summary.quantity and summary.quantity > 0 %}
+        <p class="day-change subtle">Valorado a coste · sin precio de mercado</p>
+        {% endif %}
+    </div>
+    <div class="detail-head-actions">
+        {% if asset.asset_type.value in ("accion_etf_fondo", "criptomoneda") %}
+        <form method="post" action="/activos/{{ asset.id }}/actualizar-precio">{{ csrf_input(request) }}
+            <button type="submit" class="ghost small">{{ icon("refresh-cw", 14) }} Precio</button>
+        </form>
+        {% endif %}
+        <button type="button" class="ghost small" data-open-dialog="#dlg-asset-{{ asset.id }}">{{ icon("pencil", 14) }} Editar</button>
+        <form method="post" action="/activos/{{ asset.id }}/eliminar" data-confirm="¿Eliminar el activo &quot;{{ asset.name }}&quot;?">{{ csrf_input(request) }}
+            <button type="submit" class="danger small">{{ icon("trash-2", 14) }} Eliminar</button>
+        </form>
+    </div>
+</section>
+
+{% if summary %}
+<section class="grid-summary">
+    <div class="card stat">
+        <span class="stat-head">{{ icon("coins", 16) }} Cantidad</span>
+        <p class="big-number">{{ "%g"|format(summary.quantity) if summary.quantity is not none else "-" }}</p>
+    </div>
+    <div class="card stat">
+        <span class="stat-head">{{ icon("chart-column", 16) }} Precio actual</span>
+        <p class="big-number">{% if asset.current_price is not none %}<span data-money="{{ asset.current_price }}" data-cur="{{ asset.currency.value }}">{{ asset.current_price|dinero }} <small>{{ asset.currency.value }}</small></span>{% else %}-{% endif %}</p>
+        {% if secondary %}<span class="subtle" title="Precio convertido a {{ secondary.currency }} al tipo de cambio actual">≈ {{ secondary.price|dinero }} {{ secondary.currency }}</span>{% endif %}
+        {% if asset.last_price_update %}<span class="subtle">act. {{ asset.last_price_update.strftime("%d/%m %H:%M") }}</span>{% endif %}
+    </div>
+    <div class="card stat">
+        <span class="stat-head">{{ icon("scale", 16) }} Coste medio</span>
+        <p class="big-number">{% if summary.avg_cost is not none %}<span data-money="{{ summary.avg_cost }}" data-cur="{{ asset.currency.value }}">{{ summary.avg_cost|dinero }} <small>{{ asset.currency.value }}</small></span>{% else %}-{% endif %}</p>
+    </div>
+    <div class="card stat">
+        <span class="stat-head">{{ icon("wallet", 16) }} Valor</span>
+        <p class="big-number">{% if summary.value is not none %}<span data-money="{{ summary.value }}" data-cur="{{ asset.currency.value }}">{{ summary.value|dinero }} <small>{{ asset.currency.value }}</small></span>{% else %}-{% endif %}</p>
+    </div>
+    <div class="card stat {{ 'positive' if summary.unrealized is not none and summary.unrealized >= 0 else 'negative' if summary.unrealized is not none else '' }}">
+        <span class="stat-head">{{ icon("trending-up", 16) }} P&amp;L no realizado</span>
+        {% if summary.unrealized is not none %}
+        <p class="big-number {{ 'positive' if summary.unrealized >= 0 else 'negative' }}">
+            <span data-money="{{ summary.unrealized }}" data-cur="{{ asset.currency.value }}">{{ summary.unrealized|dinero }} <small>{{ asset.currency.value }}</small></span>{% if summary.pnl_pct is not none %}<small> · {{ "%+.2f"|format(summary.pnl_pct) }}%</small>{% endif %}
+        </p>
+        {% else %}<p class="big-number"><small class="subtle">Sin precio de mercado</small></p>{% endif %}
+    </div>
+    <div class="card stat {% if summary.fx_effect_pct is not none %}{{ 'positive' if summary.fx_effect_pct >= 0 else 'negative' }}{% endif %}">
+        <span class="stat-head">{{ icon("arrow-left-right", 16) }} Efecto divisa</span>
+        {% if summary.fx_effect_pct is not none %}
+        <p class="big-number {{ 'positive' if summary.fx_effect_pct >= 0 else 'negative' }}">{{ "%+.2f"|format(summary.fx_effect_pct) }}<small>%</small></p>
+        {% if summary.exposure_local_pct is not none %}
+        <span class="subtle" title="Cotiza en {{ asset.currency.value }} pero el subyacente va en {{ summary.exposure_currency }}: parte del rendimiento viene del tipo de cambio">
+            Exposición {{ summary.exposure_currency }} · precio en {{ summary.exposure_currency }}: {{ "%+.2f"|format(summary.exposure_local_pct) }}%
+        </span>
+        {% elif summary.pnl_pct_base is not none %}
+        <span class="subtle" title="P&L con el coste al tipo de cambio del día de cada compra y el valor al de hoy: precio y divisa combinados">
+            Total en {{ base_currency }}: {{ summary.unrealized_base|dinero }} · {{ "%+.2f"|format(summary.pnl_pct_base) }}%
+        </span>
+        {% endif %}
+        {% elif asset.currency.value == base_currency %}
+        <p class="big-number subtle">—</p>
+        <span class="subtle">Activo en {{ base_currency }}: sin efecto divisa</span>
+        {% else %}
+        <p class="big-number subtle">—</p>
+        <span class="subtle">Sin datos suficientes para calcularlo</span>
+        {% endif %}
+    </div>
+    {% if summary.day_change is not none %}
+    <div class="card stat {{ 'positive' if summary.day_change >= 0 else 'negative' }}">
+        <span class="stat-head">{{ icon("calendar", 16) }} Variación del día</span>
+        <p class="big-number {{ 'positive' if summary.day_change >= 0 else 'negative' }}">
+            <span data-money="{{ summary.day_change }}" data-cur="{{ asset.currency.value }}">{{ summary.day_change|dinero }} <small>{{ asset.currency.value }}</small></span>{% if summary.day_change_pct is not none %}<small> · {{ "%+.2f"|format(summary.day_change_pct) }}%</small>{% endif %}
+        </p>
+    </div>
+    {% endif %}
+    {% if summary.realized %}
+    <div class="card stat {{ 'positive' if summary.realized >= 0 else 'negative' }}">
+        <span class="stat-head">{{ icon("circle-check", 16) }} P&amp;L realizado</span>
+        <p class="big-number {{ 'positive' if summary.realized >= 0 else 'negative' }}"><span data-money="{{ summary.realized }}" data-cur="{{ asset.currency.value }}">{{ summary.realized|dinero }} <small>{{ asset.currency.value }}</small></span></p>
+    </div>
+    {% endif %}
+</section>
+{% else %}
+<section class="grid-summary">
+    <div class="card stat">
+        <span class="stat-head">{{ icon("wallet", 16) }} Valor</span>
+        <p class="big-number">{{ value_base|dinero }} <small>{{ base_currency }}</small></p>
+        {% if asset.last_price_update %}<span class="subtle">act. {{ asset.last_price_update.strftime("%d/%m/%Y") }}</span>{% endif %}
+    </div>
+</section>
+{% endif %}
+
+{% if summary %}
+<section class="card">
+    <h3>{{ icon("trending-up") }} Evolución del precio <small class="subtle" style="font-weight:500">{{ asset.currency.value }}</small></h3>
+    {% if price_history and price_history|length > 1 %}
+    <div class="chart-controls">
+        <div class="range-chips" id="price-range-chips">
+            <button type="button" data-days="1" title="Curva del día (intradía, bajo demanda)">1D</button>
+            <button type="button" data-days="7">1S</button>
+            <button type="button" data-days="30">1M</button>
+            <button type="button" data-days="365">1A</button>
+            <button type="button" data-days="1825">5A</button>
+            <button type="button" data-days="0">Todo</button>
+        </div>
+    </div>
+    <div class="chart-box" style="height:220px"><canvas id="chart-price"></canvas></div>
+    {% else %}
+    <div class="empty">{{ icon("chart-column", 28) }}
+        {% if asset.ticker %}Aún no hay histórico de precios (se descarga a diario).{% else %}Asigna un ticker Yahoo para ver la evolución del precio.{% endif %}
+    </div>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if asset.asset_type.value in ("accion_etf_fondo", "criptomoneda") %}
+<section class="card">
+    <h3>{{ icon("circle-alert") }} Alertas de precio
+        {% if alertas %}<span class="tag">{{ alertas|length }}</span>{% endif %}
+    </h3>
+    <p class="hint">
+        Avisan por Telegram cuando se cumple la condición, y solo una vez: no vuelven a
+        sonar hasta que el precio deja de cumplirla y la cruza de nuevo.
+    </p>
+
+    {% if alertas %}
+    <ul style="list-style:none; padding:0; margin:.6rem 0">
+        {% for a in alertas %}
+        <li style="display:flex; align-items:center; gap:.6rem; padding:.35rem 0">
+            {% if a.tipo.value == "por_encima" %}{{ icon("trending-up", 15) }} Por encima de <strong>{{ a.valor|dinero }} {{ asset.currency.value }}</strong>
+            {% elif a.tipo.value == "por_debajo" %}{{ icon("trending-down", 15) }} Por debajo de <strong>{{ a.valor|dinero }} {{ asset.currency.value }}</strong>
+            {% else %}{{ icon("trending-down", 15) }} Si cae hoy más de <strong>{{ "%g"|format(a.valor) }}%</strong>{% endif %}
+            {% if a.ultimo_disparo %}<span class="tag" title="Ya avisó; se rearma cuando el precio deje de cumplir la condición">avisada</span>{% endif %}
+            <form method="post" action="/activos/alertas/{{ a.id }}/eliminar" style="margin-left:auto"
+                  data-confirm="¿Eliminar esta alerta?">{{ csrf_input(request) }}
+                <button type="submit" class="ghost icon-btn" title="Eliminar">{{ icon("trash-2", 14) }}</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" action="/activos/{{ asset.id }}/alertas"
+          style="display:flex; gap:.4rem; flex-wrap:wrap; align-items:flex-end">{{ csrf_input(request) }}
+        <div class="field" style="flex:1 1 11rem">
+            <label for="al-tipo">Condición</label>
+            <select id="al-tipo" name="tipo">
+                <option value="por_encima">Sube por encima de</option>
+                <option value="por_debajo">Baja por debajo de</option>
+                <option value="caida_diaria">Cae hoy más de (%)</option>
+            </select>
+        </div>
+        <div class="field" style="flex:1 1 7rem">
+            <label for="al-valor">Valor</label>
+            <input id="al-valor" type="number" step="0.01" min="0.01" name="valor" required
+                   inputmode="decimal" placeholder="0,00">
+        </div>
+        <button type="submit" class="primary">Crear alerta</button>
+    </form>
+    {% if not telegram_listo %}
+    <p class="hint">{{ icon("triangle-alert", 14) }} El bot de Telegram no está configurado: las alertas se
+    evaluarán igual, pero no habrá a dónde enviarlas.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if por_cuenta %}
+<section class="card">
+    <h3>{{ icon("landmark") }} Posición por cuenta</h3>
+    <p class="hint">Repartido por bróker, para poder cuadrarlo con cada extracto.</p>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>CUENTA</th>
+                    <th style="text-align:right">CANTIDAD</th>
+                    <th style="text-align:right">COSTE MEDIO</th>
+                    <th style="text-align:right">VALOR</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in por_cuenta %}
+                <tr>
+                    <td>{{ f.cuenta }}</td>
+                    <td style="text-align:right">{{ "%g"|format(f.cantidad) }}</td>
+                    <td style="text-align:right">
+                        {% if f.coste_medio is not none %}{{ f.coste_medio|dinero }} <small class="subtle">{{ asset.currency.value }}</small>{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:right">
+                        {% if f.valor is not none %}{{ f.valor|dinero }} <small class="subtle">{{ asset.currency.value }}</small>{% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<section class="card">
+    <h3>{{ icon("briefcase") }} Operaciones
+        {% if operations %}<span class="tag accent">{{ operations|length }}</span>{% endif %}
+        <a class="btn ghost small" href="/operaciones?activo={{ asset.id }}" style="margin-left:auto">{{ icon("pencil", 13) }} Gestionar</a>
+    </h3>
+    {% if operations %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th><th>Tipo</th><th class="num">Cantidad</th>
+                <th class="num">Precio</th><th class="num">Comisión</th><th class="num">Importe</th><th>Cuenta</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for op in operations %}
+            <tr>
+                <td>{{ op.date.strftime("%d/%m/%Y") }}</td>
+                <td>
+                    {% if op.type.value == "compra" %}<span class="tag positive">{{ icon("trending-up", 13) }} Compra</span>
+                    {% else %}<span class="tag negative">{{ icon("trending-down", 13) }} Venta</span>{% endif %}
+                </td>
+                <td class="num">{{ "%g"|format(op.quantity) }}</td>
+                <td class="num"><span data-money="{{ op.unit_price }}" data-cur="{{ asset.currency.value }}">{{ op.unit_price|dinero }} {{ asset.currency.value }}</span></td>
+                <td class="num">{{ op.fee|dinero if op.fee else "-" }}</td>
+                <td class="num"><strong data-money="{{ op.quantity * op.unit_price }}" data-cur="{{ asset.currency.value }}">{{ (op.quantity * op.unit_price)|dinero }}</strong></td>
+                <td>{% if op.account %}<span class="tag">{{ icon("landmark", 13) }} {{ op.account.name }}</span>{% else %}<span class="subtle">-</span>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty">{{ icon("inbox", 28) }} Sin operaciones. {% if asset.asset_type.value in ("accion_etf_fondo", "criptomoneda") %}<a href="/operaciones?activo={{ asset.id }}">Registra la primera</a> o importa el CSV de tu broker.{% endif %}</div>
+    {% endif %}
+</section>
+
+<dialog id="dlg-asset-{{ asset.id }}">
+    <h3>{{ icon("pencil") }} Editar activo</h3>
+    <form method="post" action="/activos/{{ asset.id }}/editar" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label>Nombre</label>
+            <input type="text" name="name" value="{{ asset.name }}" required>
+        </div>
+        <div class="field">
+            <label>Tipo</label>
+            <select name="asset_type">
+                <option value="cuenta_bancaria" {% if asset.asset_type.value == "cuenta_bancaria" %}selected{% endif %}>Cuenta bancaria</option>
+                <option value="accion_etf_fondo" {% if asset.asset_type.value == "accion_etf_fondo" %}selected{% endif %}>Acción / ETF / Fondo</option>
+                <option value="criptomoneda" {% if asset.asset_type.value == "criptomoneda" %}selected{% endif %}>Criptomoneda</option>
+                <option value="inmueble_otro" {% if asset.asset_type.value == "inmueble_otro" %}selected{% endif %}>Inmueble / Otro</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Moneda</label>
+            <select name="currency">
+                {% for c in currencies %}<option value="{{ c.value }}" {% if asset.currency == c %}selected{% endif %}>{{ c.value }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label title="Para activos que cotizan en {{ base_currency }} con subyacente en otra divisa (clase USD de un fondo, cotización de Frankfurt de una acción USA): el efecto divisa se calcula contra ella">Divisa de exposición</label>
+            <select name="exposure_currency">
+                <option value="">— (la de cotización)</option>
+                {% for c in currencies %}{% if c.value != base_currency %}<option value="{{ c.value }}" {% if asset.exposure_currency == c.value %}selected{% endif %}>{{ c.value }}</option>{% endif %}{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Ticker / ID CoinGecko</label>
+            <input type="text" name="ticker" value="{{ asset.ticker or '' }}">
+        </div>
+        <div class="field">
+            <label>Cantidad</label>
+            <input type="number" step="any" name="quantity" value="{{ asset.quantity if asset.quantity is not none else '' }}">
+        </div>
+        <div class="field">
+            <label>Valor manual</label>
+            <input type="number" step="0.01" name="manual_value" value="{{ asset.manual_value if asset.manual_value is not none else '' }}">
+        </div>
+        <div class="field">
+            <label title="Sobrescribe el precio medio de compra calculado de las operaciones">Precio medio manual</label>
+            <input type="number" step="any" name="avg_cost_override" value="{{ asset.avg_cost_override if asset.avg_cost_override is not none else '' }}" placeholder="Automático (de operaciones)">
+        </div>
+        <div class="field">
+            <label>Región</label>
+            <input type="text" name="region" value="{{ asset.region or '' }}" list="regiones" placeholder="Global, EE. UU., Europa...">
+        </div>
+        <div class="field">
+            <label>Sector</label>
+            <input type="text" name="sector" value="{{ asset.sector or '' }}" list="sectores" placeholder="Tecnología, Diversificado...">
+        </div>
+        <div class="dialog-actions full">
+            <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+            <button type="submit">{{ icon("check", 15) }} Guardar</button>
+        </div>
+    </form>
+</dialog>
+
+<datalist id="regiones">
+    <option value="Global"></option><option value="EE. UU."></option><option value="Europa"></option>
+    <option value="Emergentes"></option><option value="Asia"></option><option value="Japón"></option>
+    <option value="China"></option>
+</datalist>
+<datalist id="sectores">
+    <option value="Diversificado"></option><option value="Tecnología"></option><option value="Salud"></option>
+    <option value="Finanzas"></option><option value="Energía"></option><option value="Consumo"></option>
+    <option value="Industria"></option><option value="Inmobiliario"></option><option value="Cripto"></option>
+</datalist>
+
+{% endblock %}
+{% block scripts %}
+{% if summary and price_history and price_history|length > 1 %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    Chart.defaults.color = "#a9b1c0";
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.borderColor = "rgba(48, 58, 77, .35)";
+    Chart.defaults.maintainAspectRatio = false;
+    const dailyData = {{ price_history | tojson }};
+    // Operaciones agrupadas por fecha, para marcarlas sobre la curva. Si hay
+    // varias el mismo día se queda el precio medio ponderado: pintar dos puntos
+    // superpuestos no aporta nada y el tooltip se pelea consigo mismo.
+    const opsPorFecha = {};
+    {% for op in operations %}
+    (() => {
+        const f = "{{ op.date.isoformat() }}";
+        const previa = opsPorFecha[f];
+        const cantidad = {{ op.quantity }};
+        const precio = {{ op.unit_price }};
+        if (previa) {
+            const total = previa.cantidad + cantidad;
+            previa.precio = (previa.precio * previa.cantidad + precio * cantidad) / total;
+            previa.cantidad = total;
+            if (previa.tipo !== "{{ op.type.value }}") previa.tipo = "mixta";
+        } else {
+            opsPorFecha[f] = { tipo: "{{ op.type.value }}", precio: precio, cantidad: cantidad };
+        }
+    })();
+    {% endfor %}
+
+    const COLOR_OP = { compra: "#3ecf8e", venta: "#f26d6d", mixta: "#e0a44f" };
+    const ctx = document.getElementById("chart-price").getContext("2d");
+    const grad = ctx.createLinearGradient(0, 0, 0, 220);
+    grad.addColorStop(0, "rgba(79, 142, 247, .30)");
+    grad.addColorStop(1, "rgba(79, 142, 247, 0)");
+
+    let priceChart = null;
+    let rangeDays = parseInt(localStorage.getItem("asset.range") || "0", 10);
+    let intradayCache = null;  // se pide una sola vez por visita
+
+    function renderPrice(points, isIntraday) {
+        if (priceChart) priceChart.destroy();
+
+        const datasets = [{
+            label: "Precio ({{ asset.currency.value }})",
+            data: points.map(p => p.precio),
+            borderColor: "#4f8ef7", backgroundColor: grad, fill: true,
+            tension: 0.25, pointRadius: 0, borderWidth: 2,
+        }];
+
+        // Marcas de compra/venta: solo en la vista diaria, porque las fechas de
+        // las operaciones no casan con las marcas horarias del intradía.
+        if (!isIntraday) {
+            const marcas = points.map(p => opsPorFecha[p.fecha] ? opsPorFecha[p.fecha].precio : null);
+            if (marcas.some(v => v !== null)) {
+                datasets.push({
+                    label: "Tus operaciones",
+                    data: marcas,
+                    showLine: false,          // solo los puntos, sin unirlos
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBorderColor: "#0b0d12",
+                    pointBorderWidth: 1.5,
+                    pointBackgroundColor: points.map(p => {
+                        const op = opsPorFecha[p.fecha];
+                        return op ? COLOR_OP[op.tipo] : "transparent";
+                    }),
+                });
+            }
+        }
+
+        priceChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: isIntraday
+                    ? points.map(p => new Date(p.ts).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }))
+                    : points.map(p => p.fecha),
+                datasets: datasets
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            // El punto de operación dice qué fue y a cuánto, que es
+                            // justo lo que se quiere saber al verlo sobre la curva
+                            label: (item) => {
+                                if (item.datasetIndex === 0) {
+                                    return "Precio: " + item.formattedValue + " {{ asset.currency.value }}";
+                                }
+                                const op = opsPorFecha[points[item.dataIndex].fecha];
+                                if (!op) return null;
+                                const verbo = op.tipo === "compra" ? "Compra"
+                                            : op.tipo === "venta" ? "Venta" : "Compra y venta";
+                                return verbo + ": " + op.cantidad + " u a " + item.formattedValue;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    const chips = document.querySelectorAll("#price-range-chips button");
+    const markActive = () => chips.forEach(b => b.classList.toggle("active", parseInt(b.dataset.days, 10) === rangeDays));
+
+    function fallbackTo(days) {
+        rangeDays = days;
+        localStorage.setItem("asset.range", String(days));
+        markActive();
+        renderRange();
+    }
+
+    function renderRange() {
+        if (rangeDays === 1) {
+            if (intradayCache !== null) {
+                if (intradayCache.length > 1) renderPrice(intradayCache, true);
+                else { window.appToast("Sin datos intradía para este activo", "info"); fallbackTo(7); }
+                return;
+            }
+            fetch("/activos/{{ asset.id }}/intradia")
+                .then(r => r.json())
+                .then(d => { intradayCache = d.points || []; renderRange(); })
+                .catch(() => { intradayCache = []; renderRange(); });
+            return;
+        }
+        let points = dailyData;
+        if (rangeDays > 0) {
+            const cut = new Date(Date.now() - rangeDays * 864e5).toISOString().slice(0, 10);
+            points = dailyData.filter(p => p.fecha >= cut);
+        }
+        if (points.length < 2) { window.appToast("Aún no hay histórico suficiente para ese rango", "info"); points = dailyData; }
+        renderPrice(points, false);
+    }
+
+    markActive();
+    renderRange();
+    chips.forEach(b => b.addEventListener("click", () => {
+        rangeDays = parseInt(b.dataset.days, 10);
+        localStorage.setItem("asset.range", String(rangeDays));
+        markActive();
+        renderRange();
+    }));
+});
+</script>
+{% endif %}
+{% endblock %}

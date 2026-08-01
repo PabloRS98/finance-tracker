@@ -1,0 +1,210 @@
+"""Vista principal: evolución de patrimonio, desglose por tipo de activo,
+ingresos/gastos, presupuestos y pendientes de aprobar."""
+import calendar
+from datetime import date, timedelta
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
+
+from ..auth import verify_auth
+from ..config import settings
+from ..database import get_db
+from ..flash import redirect_flash
+from ..models import (
+    Asset, AssetType, Category, NetWorthIntraday, NetWorthSnapshot, SnapshotSource,
+    Transaction, TransactionStatus, TransactionType, utcnow,
+)
+from ..services import market_data
+from ..services.history import benchmark_series, cagr_from_evolution, eur_usd_snapshot, portfolio_evolution
+from ..services.portfolio import portfolio_totals
+from ..services.xray import invested_rows
+from ..services.scheduler import backup_database, compute_net_worth
+from ..templating import templates
+
+router = APIRouter(tags=["dashboard"], dependencies=[Depends(verify_auth)])
+
+CERO = Decimal("0")
+
+TYPE_LABELS = {
+    AssetType.CUENTA: "Cuentas",
+    AssetType.ACCION: "Inversión",
+    AssetType.CRIPTO: "Cripto",
+    AssetType.OTRO: "Inmuebles/Otro",
+}
+
+
+@router.get("/")
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    valuation = compute_net_worth(db)
+    invested = portfolio_totals(db)
+
+    # Evolución híbrida: parte invertida reconstruida desde operaciones + precios
+    # históricos; parte manual desde snapshots. Benchmarks para el modo comparación.
+    evolution = portfolio_evolution(db)
+    benchmarks = benchmark_series(db)
+    cagr = cagr_from_evolution(evolution)
+
+    # Muestras intradía (últimas 24 h) para el rango 1D; timestamps en UTC con
+    # "Z" explícita para que el navegador las pase a hora local
+    intraday = [
+        {"ts": r.ts.isoformat() + "Z", "total": r.total_value, "invertido": r.invested_value}
+        for r in db.query(NetWorthIntraday)
+        .filter(NetWorthIntraday.ts >= utcnow() - timedelta(hours=24))
+        .order_by(NetWorthIntraday.ts)
+        .all()
+    ]
+
+    # Desglose del patrimonio por tipo de activo (en moneda base)
+    breakdown: dict[str, float] = {}
+    for asset in db.query(Asset).all():
+        rate = market_data.get_exchange_rate(asset.currency.value, settings.base_currency)
+        if rate is None:
+            continue  # sin tipo de cambio no se puede repartir por tipo de activo
+        value = asset.current_value() * rate
+        if value <= 0:
+            continue
+        label = TYPE_LABELS.get(asset.asset_type, "Otro")
+        breakdown[label] = breakdown.get(label, 0.0) + value
+    breakdown_items = sorted(breakdown.items(), key=lambda kv: kv[1], reverse=True)
+
+    # Mapa de la cartera invertida: superficie = peso, color = variación del día.
+    # Reutiliza invested_rows, que ya valora cada posición en la moneda base y
+    # deja fuera las que no se pueden convertir.
+    heatmap = sorted(
+        (
+            {
+                "nombre": r["asset"].name,
+                "ticker": r["asset"].ticker or "",
+                "valor": round(r["value_base"], 2),
+                "variacion": r["summary"]["day_change_pct"],
+            }
+            for r in invested_rows(db)
+        ),
+        key=lambda r: r["valor"], reverse=True,
+    )
+
+    today = date.today()
+    first_of_month = today.replace(day=1)
+    month_txs = (
+        db.query(Transaction)
+        .filter(Transaction.date >= first_of_month, Transaction.status == TransactionStatus.CONFIRMADO)
+        .all()
+    )
+    # Los importes son Decimal: los acumuladores arrancan en Decimal("0"), no en
+    # 0.0, para no mezclar tipos (y para que las sumas sean exactas al céntimo).
+    gastos_mes = sum((t.amount for t in month_txs if t.type == TransactionType.GASTO), CERO)
+    ingresos_mes = sum((t.amount for t in month_txs if t.type == TransactionType.INGRESO), CERO)
+
+    gastos_por_categoria: dict[str, Decimal] = {}
+    for t in month_txs:
+        if t.type != TransactionType.GASTO:
+            continue
+        nombre = t.category.name if t.category else "Sin categoría"
+        gastos_por_categoria[nombre] = gastos_por_categoria.get(nombre, CERO) + t.amount
+
+    # Ingresos vs gastos de los últimos 6 meses
+    meses_labels, ingresos_serie, gastos_serie = [], [], []
+    year, month = today.year, today.month
+    meses_rango = []
+    for i in range(5, -1, -1):
+        m, y = month - i, year
+        while m <= 0:
+            m += 12
+            y -= 1
+        meses_rango.append((y, m))
+    for y, m in meses_rango:
+        inicio = date(y, m, 1)
+        fin = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
+        txs = (
+            db.query(Transaction)
+            .filter(Transaction.date >= inicio, Transaction.date < fin, Transaction.status == TransactionStatus.CONFIRMADO)
+            .all()
+        )
+        meses_labels.append("%s %s" % (calendar.month_abbr[m], y))
+        ingresos_serie.append(round(sum((t.amount for t in txs if t.type == TransactionType.INGRESO), CERO), 2))
+        gastos_serie.append(round(sum((t.amount for t in txs if t.type == TransactionType.GASTO), CERO), 2))
+
+    presupuestos = []
+    if settings.budgets_enabled:
+        for cat in db.query(Category).filter(Category.budget_limit.isnot(None)).all():
+            gastado = gastos_por_categoria.get(cat.name, CERO)
+            porcentaje = float(100 * gastado / cat.budget_limit) if cat.budget_limit else 0.0
+            porcentaje = round(porcentaje, 1)
+            presupuestos.append({
+                "categoria": cat.name,
+                "limite": cat.budget_limit,
+                "gastado": gastado,
+                "porcentaje": min(100, porcentaje),
+                "porcentaje_real": porcentaje,
+            })
+
+    pendientes = (
+        db.query(Transaction)
+        .filter(Transaction.status == TransactionStatus.PENDIENTE)
+        .order_by(Transaction.date.desc())
+        .all()
+    )
+    categories = db.query(Category).order_by(Category.name).all()
+
+    return templates.TemplateResponse(request, "dashboard.html", {
+            "net_worth_now": round(valuation.total, 2),
+            # Divisas sin tipo de cambio: sus activos no están en el total, y la
+            # plantilla lo avisa en vez de presentar una cifra parcial como firme
+            "missing_fx": sorted(valuation.missing),
+            "invested": invested,
+            "cagr": cagr,
+            "backup_keep": settings.backup_keep,
+            "base_currency": settings.base_currency,
+            "evolution": evolution,
+            "intraday": intraday,
+            "benchmarks": benchmarks,
+            "fx_eurusd": eur_usd_snapshot(db),
+            "breakdown_items": breakdown_items,
+            "heatmap": heatmap,
+            "gastos_mes": round(gastos_mes, 2),
+            "ingresos_mes": round(ingresos_mes, 2),
+            "balance_mes": round(ingresos_mes - gastos_mes, 2),
+            "gastos_por_categoria": gastos_por_categoria,
+            "meses_labels": meses_labels,
+            "ingresos_serie": ingresos_serie,
+            "gastos_serie": gastos_serie,
+            "presupuestos": presupuestos,
+            "pendientes": pendientes,
+            "categories": categories,
+            "hoy": today.isoformat(),
+        },
+    )
+
+
+@router.get("/fx")
+def fx_rate():
+    """Tipo de cambio actual USD->base para el toggle de divisa del frontend."""
+    return {
+        "usd_to_base": market_data.get_exchange_rate("USD", settings.base_currency),
+        "base": settings.base_currency,
+    }
+
+
+@router.get("/patrimonio/backup")
+def download_backup():
+    """Descarga un backup fresco de la BD (copia consistente vía API de SQLite)."""
+    path = backup_database("/tmp/finance-backup.db")
+    return FileResponse(
+        path, media_type="application/octet-stream",
+        filename="finance-backup-%s.db" % date.today().isoformat(),
+    )
+
+
+@router.post("/patrimonio/snapshot-manual")
+def add_manual_snapshot(fecha: date = Form(...), valor: float = Form(...), db: Session = Depends(get_db)):
+    """Permite añadir un punto histórico manual a la gráfica de evolución de patrimonio."""
+    existing = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.date == fecha).first()
+    if existing:
+        existing.total_value = valor
+        existing.source = SnapshotSource.MANUAL
+    else:
+        db.add(NetWorthSnapshot(date=fecha, total_value=valor, source=SnapshotSource.MANUAL))
+    db.commit()
+    return redirect_flash("/", "Punto histórico guardado (%s)" % fecha.isoformat())

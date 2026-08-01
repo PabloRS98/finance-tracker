@@ -1,0 +1,25 @@
+{# Lista de transacciones pendientes de aprobar (creadas por voz).
+   Espera en el contexto: lista `pendientes_list` y `categories`. #}
+{% from "_icons.html" import icon %}
+{% for tx in pendientes_list %}
+<form method="post" action="/transacciones/{{ tx.id }}/confirmar" class="pending-row">{{ csrf_input(request) }}
+    <span class="subtle">{{ tx.date.strftime("%d/%m/%y") }}</span>
+    <input type="number" step="0.01" name="amount" value="{{ tx.amount }}" aria-label="Importe">
+    <select name="type" aria-label="Tipo">
+        <option value="gasto" {% if tx.type.value == "gasto" %}selected{% endif %}>Gasto</option>
+        <option value="ingreso" {% if tx.type.value == "ingreso" %}selected{% endif %}>Ingreso</option>
+    </select>
+    <select name="category_id" aria-label="Categoría">
+        <option value="">Sin categoría</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if tx.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+    </select>
+    <input type="text" name="description" value="{{ tx.description }}" aria-label="Descripción">
+    <span class="row-actions">
+        <button type="submit" title="Confirmar">{{ icon("check", 15) }} Confirmar</button>
+        <button type="submit" formaction="/transacciones/{{ tx.id }}/rechazar" formnovalidate
+                class="danger" title="Rechazar">{{ icon("x", 15) }}</button>
+    </span>
+</form>
+{% endfor %}

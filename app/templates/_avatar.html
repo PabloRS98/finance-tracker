@@ -1,0 +1,11 @@
+{# Avatar de un activo: círculo con dos iniciales y color estable por ticker.
+   Cero red y cero imágenes: las listas dejan de ser columnas de texto uniforme
+   y cada activo se reconoce por su color antes de leer el nombre.
+
+   El color se deriva del ticker (o del nombre si no lo tiene), así que es el
+   mismo en la lista, en la ficha y en las operaciones. #}
+{% macro avatar(activo, tam=32) -%}
+{%- set clave = activo.ticker or activo.name -%}
+<span class="avatar-activo" style="--av-color: {{ color_activo(clave) }}; --av-tam: {{ tam }}px"
+      title="{{ activo.name }}" aria-hidden="true">{{ iniciales(activo.name, activo.ticker) }}</span>
+{%- endmacro %}

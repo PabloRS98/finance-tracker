@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Recurrentes · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    <h3>{{ icon("repeat") }} Nueva recurrente</h3>
+    <form method="post" action="/recurrentes" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label for="r-name">Nombre</label>
+            <input id="r-name" type="text" name="name" placeholder="Alquiler, Netflix, Nómina..." required>
+        </div>
+        <div class="field">
+            <label for="r-type">Tipo</label>
+            <select id="r-type" name="type">
+                {% for t in tx_types %}<option value="{{ t.value }}">{{ t.value|capitalize }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="r-amount">Importe</label>
+            <input id="r-amount" type="number" step="0.01" name="amount" placeholder="0.00" required>
+        </div>
+        <div class="field">
+            <label for="r-currency">Divisa</label>
+            <select id="r-currency" name="currency">
+                {% for cur in currencies %}<option value="{{ cur.value }}">{{ cur.value }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="r-freq">Frecuencia</label>
+            <select id="r-freq" name="interval_months">
+                {% for months, label in frequencies.items() %}<option value="{{ months }}">{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="r-cat">Categoría</label>
+            <select id="r-cat" name="category_id">
+                <option value="">Sin categoría</option>
+                {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="r-day">Día del mes</label>
+            <input id="r-day" type="number" name="day_of_month" min="1" max="31" value="1" required>
+        </div>
+        <div class="field">
+            <label for="r-start">Aplica desde</label>
+            <input id="r-start" type="date" name="start_date" value="{{ hoy }}" required>
+        </div>
+        <button type="submit">{{ icon("plus", 15) }} Crear</button>
+    </form>
+    <p class="hint" style="margin-top:.7rem">
+        Según la frecuencia elegida se crea sola la transacción en el día indicado (ajustado en meses
+        cortos: día 31 → 28/30), contando desde "aplica desde". Si el servidor está apagado ese día,
+        se genera al volver a encender. Si pones "aplica desde" en el pasado, se genera también el
+        histórico hasta hoy. Los importes en otra divisa se convierten a EUR al tipo de cambio del momento.
+    </p>
+</section>
+
+<section class="card">
+    <h3>{{ icon("repeat") }} Mis recurrentes
+        {% if rows %}<span class="tag accent">{{ rows|length }}</span>{% endif %}
+    </h3>
+    <div class="toolbar" style="margin-bottom:.4rem">
+        <span class="grow"></span>
+        <form method="post" action="/recurrentes/generar">{{ csrf_input(request) }}
+            <button type="submit" class="ghost small">{{ icon("refresh-cw", 14) }} Generar pendientes ahora</button>
+        </form>
+    </div>
+    {% if rows %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr><th>Nombre</th><th>Tipo</th><th class="num">Importe</th><th>Frecuencia</th><th>Categoría</th><th>Día</th><th>Próxima</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}{% set r = row.rule %}
+            <tr>
+                <td><strong>{{ r.name }}</strong></td>
+                <td>
+                    {% if r.type.value == "ingreso" %}<span class="tag positive">Ingreso</span>
+                    {% else %}<span class="tag negative">Gasto</span>{% endif %}
+                </td>
+                <td class="num">{{ r.amount|dinero }} {{ "€" if r.currency.value == "EUR" else ("$" if r.currency.value == "USD" else r.currency.value) }}</td>
+                <td>{{ frequencies.get(r.interval_months, "Mensual") }}</td>
+                <td>{{ r.category.name if r.category else "-" }}</td>
+                <td>día {{ r.day_of_month }}</td>
+                <td class="subtle">{{ row.next_due.strftime("%d/%m/%Y") if row.next_due else "-" }}</td>
+                <td>
+                    {% if r.active %}<span class="tag positive">activa</span>
+                    {% else %}<span class="tag">pausada</span>{% endif %}
+                </td>
+                <td>
+                    <span class="actions">
+                        <form method="post" action="/recurrentes/{{ r.id }}/toggle">{{ csrf_input(request) }}
+                            <button type="submit" class="ghost small" title="{{ 'Pausar' if r.active else 'Activar' }}">
+                                {{ icon("x", 13) if r.active else icon("check", 13) }} {{ "Pausar" if r.active else "Activar" }}
+                            </button>
+                        </form>
+                        <button type="button" class="ghost small icon-btn" data-open-dialog="#dlg-rec-{{ r.id }}" title="Editar">{{ icon("pencil", 14) }}</button>
+                        <form method="post" action="/recurrentes/{{ r.id }}/eliminar" data-confirm="¿Eliminar la recurrente &quot;{{ r.name }}&quot;? Las transacciones ya generadas se conservan.">{{ csrf_input(request) }}
+                            <button type="submit" class="danger small icon-btn" title="Eliminar">{{ icon("trash-2", 14) }}</button>
+                        </form>
+                    </span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty">{{ icon("repeat", 30) }} Sin recurrentes todavía
+        <span class="subtle">Alquiler, suscripciones, nómina...</span>
+        <div class="empty-acciones">
+            <button type="button" class="primary" onclick="document.querySelector('.form-grid').scrollIntoView({block:'center'})">{{ icon("plus", 14) }} Crear la primera</button>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+{% for row in rows %}{% set r = row.rule %}
+<dialog id="dlg-rec-{{ r.id }}">
+    <h3>{{ icon("pencil") }} Editar recurrente</h3>
+    <form method="post" action="/recurrentes/{{ r.id }}/editar" class="form-grid">{{ csrf_input(request) }}
+        <div class="field full">
+            <label>Nombre</label>
+            <input type="text" name="name" value="{{ r.name }}" required>
+        </div>
+        <div class="field">
+            <label>Tipo</label>
+            <select name="type">
+                {% for t in tx_types %}<option value="{{ t.value }}" {% if r.type == t %}selected{% endif %}>{{ t.value|capitalize }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Importe</label>
+            <input type="number" step="0.01" name="amount" value="{{ r.amount }}" required>
+        </div>
+        <div class="field">
+            <label>Divisa</label>
+            <select name="currency">
+                {% for cur in currencies %}<option value="{{ cur.value }}" {% if r.currency == cur %}selected{% endif %}>{{ cur.value }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Frecuencia</label>
+            <select name="interval_months">
+                {% for months, label in frequencies.items() %}<option value="{{ months }}" {% if r.interval_months == months %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Categoría</label>
+            <select name="category_id">
+                <option value="">Sin categoría</option>
+                {% for c in categories %}<option value="{{ c.id }}" {% if r.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Día del mes</label>
+            <input type="number" name="day_of_month" min="1" max="31" value="{{ r.day_of_month }}" required>
+        </div>
+        <div class="dialog-actions full">
+            <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+            <button type="submit">{{ icon("check", 15) }} Guardar</button>
+        </div>
+    </form>
+</dialog>
+{% endfor %}
+
+{% endblock %}

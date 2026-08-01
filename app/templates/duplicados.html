@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Duplicados · Patrimonio{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <h2>{{ icon("shuffle") }} Activos duplicados</h2>
+    <a href="/activos" class="ghost">Volver a activos</a>
+</div>
+
+<p class="hint">
+    El mismo valor comprado en dos sitios acaba como dos activos: Trade Republic exporta por
+    ISIN y Revolut por ticker. Al fusionarlos, todas las operaciones cuelgan de uno solo y la
+    posición vuelve a salir de una pieza. No se recalcula nada: el coste medio se deriva de las
+    operaciones, así que sigue cuadrando con tus extractos.
+</p>
+
+<p class="hint">
+    Solo se miran las posiciones vivas. Un activo que vendiste entero no es un duplicado aunque
+    comparta ticker o ISIN con otro: al traspasar de bróker vendes en uno y compras en otro, y las
+    dos etapas son operaciones reales que hay que conservar por separado.
+</p>
+
+{% if not grupos %}
+<section class="card">
+    <div class="empty">{{ icon("circle-check", 28) }} Ningún duplicado detectado</div>
+</section>
+{% endif %}
+
+{% for g in grupos %}
+<section class="card">
+    <h3>
+        {{ icon("shuffle") }} {{ g.activos|length }} activos con el mismo {{ g.motivo }}
+        <span class="tag">{{ g.clave }}</span>
+        {% if not g.fusionable %}<span class="tag warning">divisas distintas</span>{% endif %}
+    </h3>
+
+    {% if g.motivo == "nombre" %}
+    <p class="hint">{{ icon("triangle-alert", 14) }} Casados solo por el nombre: revísalos antes de fusionar.</p>
+    {% endif %}
+
+    <form method="post" action="/activos/duplicados/fusionar">{{ csrf_input(request) }}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>CONSERVAR</th>
+                    <th>ACTIVO</th>
+                    <th>TICKER / ISIN</th>
+                    <th style="text-align:right">OPERACIONES</th>
+                    <th style="text-align:right">DIVISA</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in g.activos %}
+                <tr>
+                    <td>
+                        {# El destino se elige: es el que conserva nombre, region y sector. #}
+                        <input type="radio" name="destino_id" value="{{ a.id }}"
+                               {% if loop.first %}checked{% endif %}
+                               {% if not g.fusionable %}disabled{% endif %}>
+                        <input type="hidden" name="origen_ids" value="{{ a.id }}" disabled
+                               data-origen-de="{{ a.id }}">
+                    </td>
+                    <td><a href="/activos/{{ a.id }}">{{ a.name }}</a></td>
+                    <td><code class="subtle">{{ a.ticker or "—" }} · {{ a.isin or "—" }}</code></td>
+                    <td style="text-align:right">{{ a.operations|length }}</td>
+                    <td style="text-align:right">{{ a.currency.value }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if g.fusionable %}
+    <button type="submit" class="primary" style="margin-top:.6rem"
+            data-confirm="Se fusionan en el activo marcado. Las operaciones se conservan todas; los demás activos desaparecen.">
+        Fusionar en el marcado
+    </button>
+    {% else %}
+    <p class="hint">
+        {{ icon("triangle-alert", 14) }} No se pueden fusionar: están en {{ g.divisas|join(" y ") }}.
+        Las operaciones no guardan divisa, heredan la del activo, así que juntarlas mezclaría dos
+        escalas de precio en el mismo coste medio. Iguala antes la divisa en la ficha de cada uno.
+    </p>
+    {% endif %}
+    </form>
+</section>
+{% endfor %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+// Los "origen" son todos menos el marcado como destino: se activan los campos
+// ocultos que tocan justo antes de enviar, para no tener que marcarlos a mano.
+document.querySelectorAll('form[action="/activos/duplicados/fusionar"]').forEach(form => {
+    form.addEventListener("submit", () => {
+        const destino = form.querySelector('input[name="destino_id"]:checked');
+        form.querySelectorAll('input[name="origen_ids"]').forEach(campo => {
+            campo.disabled = !destino || campo.dataset.origenDe === destino.value;
+        });
+    });
+});
+</script>
+{% endblock %}

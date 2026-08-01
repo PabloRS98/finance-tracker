@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0d12">
+    {# Token CSRF para las llamadas fetch. Va en el DOM y no en una cookie
+       legible: así la cookie puede seguir siendo HttpOnly. #}
+    <meta name="csrf-token" content="{{ request.state.csrf_token }}">
+    <title>{% block title %}Tracker de Patrimonio{% endblock %}</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="manifest" href="/static/manifest.webmanifest">
+    {# iOS ignora el manifest para instalar: sin estas metas, "Añadir a pantalla
+       de inicio" abre la app en Safari con su barra de direcciones en vez de a
+       pantalla completa. La barra de estado translúcida deja que el color de
+       fondo suba hasta arriba, como en una app nativa. #}
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Patrimonio">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="/static/css/style.css?v={{ asset_v }}">
+    <script>/* antes de pintar, para que las cifras no parpadeen */
+    if (localStorage.getItem("privacy") === "1") document.documentElement.classList.add("privacy");</script>
+    <script src="/static/js/chart.umd.js?v={{ asset_v }}" defer></script>
+</head>
+<body>
+{% from "_icons.html" import icon %}
+{% set path = request.url.path %}
+<header class="topbar">
+    <a href="/" class="brand">{{ icon("wallet", 20) }} <span>Patrimonio</span></a>
+{# Las cuatro primeras son las del uso diario y se quedan en la barra inferior
+   del móvil; las otras tres se consultan de vez en cuando y pasan al menú
+   "Más". Siete iconos no caben cómodos en 400px. En escritorio salen las
+   siete, que es donde sí hay sitio. #}
+{% set en_secundaria = path.startswith('/analisis') or path.startswith('/recurrentes') or path.startswith('/categorias') %}
+    <nav class="nav-links">
+        <a href="/" class="{{ 'active' if path == '/' else '' }}">{{ icon("layout-dashboard") }}<span>Dashboard</span></a>
+        <a href="/activos" class="{{ 'active' if path.startswith('/activos') else '' }}">{{ icon("coins") }}<span>Activos</span></a>
+        <a href="/operaciones" class="{{ 'active' if path.startswith('/operaciones') else '' }}">{{ icon("briefcase") }}<span>Operaciones</span></a>
+        <a href="/transacciones" class="{{ 'active' if path.startswith('/transacciones') else '' }}">{{ icon("arrow-left-right") }}<span>Movimientos</span></a>
+        <a href="/analisis" data-secundaria class="{{ 'active' if path.startswith('/analisis') else '' }}">{{ icon("chart-pie") }}<span>Análisis</span></a>
+        <a href="/recurrentes" data-secundaria class="{{ 'active' if path.startswith('/recurrentes') else '' }}">{{ icon("repeat") }}<span>Recurrentes</span></a>
+        <a href="/categorias" data-secundaria class="{{ 'active' if path.startswith('/categorias') else '' }}">{{ icon("tags") }}<span>Categorías</span></a>
+        {# El botón queda marcado si la página actual es una de las de dentro:
+           si no, en esas pantallas la barra no señalaría nada. #}
+        <button type="button" class="nav-mas {{ 'active' if en_secundaria else '' }}"
+                data-open-dialog="#dlg-mas" aria-label="Más secciones">
+            {{ icon("list-todo") }}<span>Más</span>
+        </button>
+    </nav>
+    <button id="btn-refresh-prices" type="button" class="ghost icon-btn" title="Refrescar precios ahora">{{ icon("refresh-cw", 17) }}</button>
+    <button id="btn-currency" type="button" class="ghost icon-btn" title="Ver importes en la otra divisa (EUR⇄USD)">€$</button>
+    <button id="btn-privacy" type="button" class="ghost icon-btn" title="Ocultar/mostrar cifras">{{ icon("eye", 17) }}</button>
+</header>
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+{# Botón flotante: las dos acciones del día a día a un toque desde cualquier
+   pantalla. Antes, apuntar un gasto eran dos navegaciones. Solo en móvil: en
+   escritorio la barra superior ya deja todo a la vista. #}
+<div class="fab-wrap" id="fab-wrap">
+    <div class="fab-actions" id="fab-actions" hidden>
+        <button type="button" class="fab-action" data-open-dialog="#dlg-gasto">
+            {{ icon("plus", 16) }} Gasto
+        </button>
+        <button type="button" class="fab-action" id="fab-voz" data-voice-btn>
+            {{ icon("mic", 16) }} Voz
+        </button>
+    </div>
+    <button type="button" class="fab" id="fab" aria-expanded="false" aria-label="Acciones rápidas">
+        {{ icon("plus", 22) }}
+    </button>
+</div>
+
+{# Las secciones que no caben en la barra inferior. Solo se abre desde móvil:
+   en escritorio los siete enlaces están a la vista y el botón está oculto. #}
+<dialog id="dlg-mas" class="dlg-mas">
+    <h3>{{ icon("list-todo", 18) }} Más secciones</h3>
+    <nav class="mas-links">
+        <a href="/analisis" class="{{ 'active' if path.startswith('/analisis') else '' }}">{{ icon("chart-pie", 18) }} Análisis</a>
+        <a href="/recurrentes" class="{{ 'active' if path.startswith('/recurrentes') else '' }}">{{ icon("repeat", 18) }} Recurrentes</a>
+        <a href="/categorias" class="{{ 'active' if path.startswith('/categorias') else '' }}">{{ icon("tags", 18) }} Categorías</a>
+    </nav>
+    <button type="button" class="ghost" data-close-dialog>Cerrar</button>
+</dialog>
+
+<dialog id="dlg-gasto" class="dlg-gasto">
+    <h3>{{ icon("piggy-bank", 18) }} Gasto rápido</h3>
+    <form method="post" action="/transacciones" class="form-grid">{{ csrf_input(request) }}
+        <input type="hidden" name="type" value="gasto">
+        <input type="hidden" name="date" value="{{ hoy_iso() }}">
+        <div class="field">
+            <label for="fab-importe">Importe</label>
+            {# inputmode decimal: en móvil abre el teclado numérico directamente #}
+            <input id="fab-importe" type="number" step="0.01" name="amount"
+                   inputmode="decimal" placeholder="0,00" required>
+        </div>
+        <div class="field">
+            <label for="fab-cat">Categoría</label>
+            <select id="fab-cat" name="category_id"><option value="">Sin categoría</option></select>
+        </div>
+        <div class="field full">
+            <label for="fab-desc">Descripción</label>
+            <input id="fab-desc" type="text" name="description" placeholder="Opcional">
+        </div>
+        <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+        <button type="submit">{{ icon("check", 15) }} Apuntar</button>
+    </form>
+</dialog>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<script src="/static/js/app.js?v={{ asset_v }}"></script>
+<script src="/static/js/currency.js?v={{ asset_v }}"></script>
+<script src="/static/js/voice.js?v={{ asset_v }}"></script>
+<script src="/static/js/fab.js?v={{ asset_v }}"></script>
+<script src="/static/js/gestos.js?v={{ asset_v }}"></script>
+<script src="/static/js/heatmap.js?v={{ asset_v }}" defer></script>
+<script>
+document.getElementById('btn-refresh-prices').addEventListener('click', function() {
+    const btn = this;
+    btn.classList.add('spinning');
+    fetch('/api/refresh-prices', { method: 'POST', headers: window.csrfHeader() })
+        .then(r => r.json())
+        .then(d => {
+            btn.classList.remove('spinning');
+            // appToast, no showToast: esta última vive dentro del IIFE de app.js
+            // y no es global, así que aquí lanzaba ReferenceError y se llevaba
+            // por delante el location.reload() de la línea siguiente.
+            window.appToast(d.message || 'Precios actualizados');
+            setTimeout(() => location.reload(), 1000);
+        })
+        .catch(() => {
+            btn.classList.remove('spinning');
+            window.appToast('Error al refrescar', 'error');
+        });
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

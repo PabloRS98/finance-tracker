@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Movimientos · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    <h3>{{ icon("mic") }} Añadir por voz</h3>
+    <div class="voice-box">
+        <button id="btn-voice" type="button" data-voice-btn>{{ icon("mic", 16) }} Grabar</button>
+        <span id="voice-status" class="hint"></span>
+    </div>
+    <p class="hint" style="margin-top:.7rem">
+        Di algo como <em>"gasté 20 euros en el supermercado ayer"</em>, <em>"15,50 en gasolina hace 3 días"</em>
+        o <em>"cobré 1.200 euros de nómina el día 1"</em>. Se crea como pendiente de aprobar.
+    </p>
+</section>
+
+{% if pending %}
+<section class="card">
+    <h3>{{ icon("mic") }} Pendientes de aprobar <span class="tag accent">{{ pending|length }}</span></h3>
+    {% with pendientes_list = pending %}{% include "_pending.html" %}{% endwith %}
+</section>
+{% endif %}
+
+<section class="card">
+    <h3>{{ icon("plus") }} Añadir manualmente</h3>
+    <form method="post" action="/transacciones" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label for="t-date">Fecha</label>
+            <input id="t-date" type="date" name="date" value="{{ hoy }}" required>
+        </div>
+        <div class="field">
+            <label for="t-type">Tipo</label>
+            <select id="t-type" name="type" required>
+                {% for t in tx_types %}<option value="{{ t.value }}">{{ t.value|capitalize }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="t-cat">Categoría</label>
+            <select id="t-cat" name="category_id">
+                <option value="">Sin categoría</option>
+                {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="t-amount">Importe</label>
+            <input id="t-amount" type="number" step="0.01" name="amount" placeholder="0.00" required>
+        </div>
+        <div class="field">
+            <label for="t-desc">Descripción</label>
+            <input id="t-desc" type="text" name="description" placeholder="Opcional">
+        </div>
+        <button type="submit">{{ icon("plus", 15) }} Añadir</button>
+    </form>
+</section>
+
+<section class="card">
+    <details>
+        <summary>{{ icon("upload", 15) }} Importar CSV del banco</summary>
+        <form method="post" action="/transacciones/importar-csv" enctype="multipart/form-data" class="form-grid">{{ csrf_input(request) }}
+            <div class="field full">
+                <label>Archivo CSV</label>
+                <input type="file" name="archivo" accept=".csv" required>
+            </div>
+            <div class="field">
+                <label>Columna fecha</label>
+                <input type="text" name="columna_fecha" placeholder="Fecha" required>
+            </div>
+            <div class="field">
+                <label>Columna importe</label>
+                <input type="text" name="columna_importe" placeholder="Importe" required>
+            </div>
+            <div class="field">
+                <label>Columna descripción</label>
+                <input type="text" name="columna_descripcion" placeholder="Concepto" required>
+            </div>
+            <div class="field">
+                <label>Formato de fecha</label>
+                <input type="text" name="formato_fecha" value="%Y-%m-%d">
+            </div>
+            <button type="submit">{{ icon("upload", 15) }} Importar</button>
+        </form>
+        <p class="hint" style="margin-top:.6rem">Abre tu CSV y copia los nombres exactos de las columnas. Formato de fecha en sintaxis Python (%d/%m/%Y para 31/12/2026).</p>
+    </details>
+</section>
+
+<section class="card">
+    <h3>{{ icon("arrow-left-right") }} Historial <span class="tag">{{ total }}</span></h3>
+    <div class="toolbar">
+        <form method="get" action="/transacciones" class="inline-form" data-noload>
+            <input type="month" name="mes" value="{{ mes or '' }}">
+            <button type="submit" class="ghost">{{ icon("filter", 14) }} Filtrar</button>
+            {% if mes %}<a class="btn ghost small" href="/transacciones">{{ icon("x", 13) }} Quitar filtro</a>{% endif %}
+        </form>
+        <span class="grow"></span>
+        <a class="btn ghost" href="/transacciones/exportar{{ '?mes=' ~ mes if mes else '' }}">{{ icon("download", 15) }} Exportar CSV</a>
+    </div>
+
+    {% if transactions %}
+    <div class="table-wrap" style="margin-top:.6rem">
+    {# apilable: en móvil cada fila se convierte en tarjeta (ver style.css) #}
+    <table class="apilable">
+        <thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th class="num">Importe</th><th>Descripción</th><th>Origen</th><th></th></tr></thead>
+        <tbody>
+        {% for tx in transactions %}
+            <tr>
+                <td class="subtle" data-col="Fecha">{{ tx.date.strftime("%d/%m/%Y") }}</td>
+                <td data-col="Tipo">
+                    {% if tx.type.value == "ingreso" %}<span class="tag positive">{{ icon("trending-up", 12) }} Ingreso</span>
+                    {% else %}<span class="tag negative">{{ icon("trending-down", 12) }} Gasto</span>{% endif %}
+                </td>
+                <td data-col="Categoría">{{ tx.category.name if tx.category else "-" }}</td>
+                <td class="num" data-col="Importe"><strong class="{{ 'positive' if tx.type.value == 'ingreso' else '' }}"
+                    style="{{ 'color: var(--positive)' if tx.type.value == 'ingreso' else '' }}">{{ tx.amount|dinero }}</strong></td>
+                <td data-col="Descripción">{{ tx.description }}</td>
+                <td data-col="Origen"><span class="tag">{{ tx.source }}</span></td>
+                <td>
+                    <span class="actions">
+                        <button type="button" class="ghost small icon-btn" data-open-dialog="#dlg-tx-{{ tx.id }}" title="Editar">{{ icon("pencil", 14) }}</button>
+                        <form method="post" action="/transacciones/{{ tx.id }}/eliminar" data-confirm="¿Eliminar esta transacción?">{{ csrf_input(request) }}
+                            <button type="submit" class="danger small icon-btn" title="Eliminar">{{ icon("trash-2", 14) }}</button>
+                        </form>
+                    </span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    {% if total_paginas > 1 %}
+    <div class="pagination">
+        {% set qs_mes = "&mes=" ~ mes if mes else "" %}
+        {% if pagina > 1 %}
+        <a class="btn ghost small" href="/transacciones?pagina={{ pagina - 1 }}{{ qs_mes }}">{{ icon("chevron-left", 14) }} Anterior</a>
+        {% endif %}
+        <span class="subtle">Página {{ pagina }} de {{ total_paginas }}</span>
+        {% if pagina < total_paginas %}
+        <a class="btn ghost small" href="/transacciones?pagina={{ pagina + 1 }}{{ qs_mes }}">Siguiente {{ icon("chevron-right", 14) }}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty">{{ icon("inbox", 30) }} {% if mes %}No hay movimientos en {{ mes }}.{% else %}Aún no hay movimientos.{% endif %}</div>
+    {% endif %}
+</section>
+
+{% for tx in transactions %}
+<dialog id="dlg-tx-{{ tx.id }}">
+    <h3>{{ icon("pencil") }} Editar transacción</h3>
+    <form method="post" action="/transacciones/{{ tx.id }}/editar" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label>Fecha</label>
+            <input type="date" name="date" value="{{ tx.date.isoformat() }}" required>
+        </div>
+        <div class="field">
+            <label>Tipo</label>
+            <select name="type">
+                {% for t in tx_types %}<option value="{{ t.value }}" {% if tx.type == t %}selected{% endif %}>{{ t.value|capitalize }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Categoría</label>
+            <select name="category_id">
+                <option value="">Sin categoría</option>
+                {% for c in categories %}<option value="{{ c.id }}" {% if tx.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Importe</label>
+            <input type="number" step="0.01" name="amount" value="{{ tx.amount }}" required>
+        </div>
+        <div class="field full">
+            <label>Descripción</label>
+            <input type="text" name="description" value="{{ tx.description }}">
+        </div>
+        <div class="dialog-actions full">
+            <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+            <button type="submit">{{ icon("check", 15) }} Guardar</button>
+        </div>
+    </form>
+</dialog>
+{% endfor %}
+
+{% endblock %}

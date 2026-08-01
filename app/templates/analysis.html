@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Análisis · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    <h3>{{ icon("shield-alert") }} X-Ray de la cartera
+        {% if warns %}<span class="tag warning">{{ warns }} avisos</span>
+        {% else %}<span class="tag positive">{{ icon("circle-check", 13) }} limpio</span>{% endif %}
+    </h3>
+    <ul class="xray-list">
+        {% for c in checks %}
+        <li class="xray-item {{ c.level }}">
+            {% if c.level == "warn" %}{{ icon("triangle-alert", 16) }}
+            {% elif c.level == "info" %}{{ icon("info", 16) }}
+            {% else %}{{ icon("circle-check", 16) }}{% endif %}
+            <div>
+                <strong>{{ c.titulo }}</strong>
+                <p class="hint">{{ c.detalle }}</p>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    <p class="hint" style="margin-top:.6rem">
+        Umbrales: activo &gt; {{ umbrales.activo|int }}% · divisa extranjera &gt; {{ umbrales.divisa|int }}% ·
+        precio sin actualizar &gt; {{ umbrales.precio_dias }} días · valor manual sin revisar &gt; {{ umbrales.manual_dias }} días.
+        Se cambian en el <code>.env</code> (XRAY_*).
+    </p>
+</section>
+
+{% if twr is not none or xirr is not none %}
+<section class="card">
+    <h3>{{ icon("trending-up") }} Rendimiento de la cartera</h3>
+    <div class="badges" style="margin:.5rem 0 .2rem">
+        {% if twr is not none %}
+        <span class="tag {{ 'positive' if twr >= 0 else 'negative' }}"
+              title="Rendimiento encadenado, descontando tus aportaciones. Mide la estrategia: no cambia según cuándo metieras el dinero, así que es lo comparable con un índice.">
+            TWR {{ "%+.2f"|format(twr) }}%
+        </span>
+        {% endif %}
+        {% if xirr is not none %}
+        <span class="tag {{ 'positive' if xirr >= 0 else 'negative' }}"
+              title="Rentabilidad anualizada de TU dinero: pondera cada aportación por el tiempo que lleva trabajando. Si acertaste con el momento de entrar, sale por encima del TWR.">
+            XIRR {{ "%+.2f"|format(xirr) }}% anual
+        </span>
+        {% endif %}
+        {% if cagr is not none %}
+        <span class="tag {{ 'positive' if cagr >= 0 else 'negative' }}"
+              title="El TWR llevado a ritmo anual, para poder compararlo con el «7% histórico» de los índices.">
+            CAGR {{ "%+.2f"|format(cagr) }}% anual
+        </span>
+        {% endif %}
+    </div>
+    <p class="hint">
+        El <strong>TWR</strong> mide la estrategia y el <strong>XIRR</strong> mide tu dinero:
+        si aportaste justo antes de una subida, el XIRR sale por encima. Comparar con un índice
+        es cosa del TWR.
+    </p>
+
+    {% if anual %}
+    <h4 style="margin:1rem 0 .4rem">Por año</h4>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>AÑO</th>
+                    <th style="text-align:right">CARTERA</th>
+                    {% for clave, b in anual[0].benchmarks.items() %}
+                    <th style="text-align:right">{{ b.label|upper }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in anual|reverse %}
+                <tr>
+                    <td>{{ fila.ano }}{% if fila.parcial %} <span class="subtle" title="El año no está completo: la cartera no estuvo expuesta de enero a diciembre">·  parcial</span>{% endif %}</td>
+                    <td style="text-align:right" class="{{ 'positive' if (fila.cartera or 0) >= 0 else 'negative' }}">
+                        {% if fila.cartera is not none %}{{ "%+.2f"|format(fila.cartera) }}%{% else %}—{% endif %}
+                    </td>
+                    {% for clave, b in fila.benchmarks.items() %}
+                    <td style="text-align:right" class="subtle">
+                        {% if b.pct is not none %}{{ "%+.2f"|format(b.pct) }}%{% else %}—{% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p class="hint">
+        Rentabilidad de cada año natural. El primero y el último suelen salir
+        <em>parciales</em>: la cartera no estuvo expuesta de enero a diciembre, así que no
+        se pueden comparar con un año entero.
+    </p>
+    {% endif %}
+
+</section>
+{% endif %}
+
+<section class="card">
+    <h3>{{ icon("scale") }} Índices de referencia <span class="tag">{{ benchmarks|length }}</span>
+        <a class="btn ghost small" href="/analisis/rebalanceo" style="margin-left:auto">{{ icon("scale", 14) }} Rebalanceo</a>
+    </h3>
+    <p class="hint">Contra estos se compara la cartera en la gráfica del dashboard y en la tabla por año.</p>
+        <ul style="list-style:none; padding:0; margin:.5rem 0">
+            {% for b in benchmarks %}
+            <li style="display:flex; align-items:center; gap:.5rem; padding:.25rem 0">
+                <strong>{{ b.label }}</strong>
+                <code class="subtle">{{ b.symbol }}</code>
+                <form method="post" action="/analisis/benchmarks/{{ b.id }}/eliminar" style="margin-left:auto"
+                      data-confirm="¿Dejar de seguir {{ b.label }}? Se borra también su histórico descargado.">{{ csrf_input(request) }}
+                    <button type="submit" class="ghost icon-btn" title="Dejar de seguir">{{ icon("trash-2", 15) }}</button>
+                </form>
+            </li>
+            {% else %}
+            <li class="subtle">Ninguno: sin índices no hay con qué comparar.</li>
+            {% endfor %}
+        </ul>
+        <form method="post" action="/analisis/benchmarks" style="display:flex; gap:.4rem; flex-wrap:wrap">{{ csrf_input(request) }}
+            <input name="symbol" placeholder="Símbolo de Yahoo (^IBEX, VWCE.DE...)" required style="flex:1 1 14rem">
+            <input name="label" placeholder="Nombre (opcional)" style="flex:1 1 9rem">
+            <button type="submit" class="primary">Seguir índice</button>
+        </form>
+        <p class="hint">
+            Se comprueba contra Yahoo antes de guardarlo. El histórico se descarga en el
+            repaso diario, así que la columna del año aparece a partir de entonces.
+        </p>
+</section>
+
+{% if fees.count %}
+<section class="card">
+    <h3>{{ icon("banknote") }} Comisiones pagadas
+        <span class="tag negative">{{ fees.total|dinero }} {{ base_currency }}</span>
+        <span class="subtle" style="font-weight:500">en {{ fees.count }} operaciones</span>
+    </h3>
+    <div class="badges" style="margin-top:.4rem">
+        {% for year, amount in fees.by_year %}
+        <span class="tag">{{ year }} · {{ amount|dinero }} {{ base_currency }}</span>
+        {% endfor %}
+    </div>
+    <p class="hint" style="margin-top:.6rem">Comisiones de compra/venta registradas en las operaciones, convertidas a {{ base_currency }} al tipo de cambio actual.</p>
+</section>
+{% endif %}
+
+{% if alloc.total > 0 %}
+<section class="grid-charts">
+    <div class="card">
+        <h3>{{ icon("chart-pie") }} Por divisa</h3>
+        <div class="chart-box"><canvas id="chart-divisa"></canvas></div>
+    </div>
+    <div class="card">
+        <h3>{{ icon("chart-pie") }} Por región</h3>
+        <div class="chart-box"><canvas id="chart-region"></canvas></div>
+    </div>
+    <div class="card">
+        <h3>{{ icon("chart-pie") }} Por sector</h3>
+        <div class="chart-box"><canvas id="chart-sector"></canvas></div>
+    </div>
+</section>
+
+<section class="card">
+    <h3>{{ icon("briefcase") }} Posiciones <span class="tag accent">{{ alloc.total|dinero }} {{ base_currency }}</span></h3>
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr><th>Activo</th><th>Divisa</th><th>Región</th><th>Sector</th><th class="num">Valor ({{ base_currency }})</th><th class="num">Peso</th></tr>
+        </thead>
+        <tbody>
+        {% for r in alloc.rows|sort(attribute="value_base", reverse=true) %}{% set a = r.asset %}
+            <tr>
+                <td><strong>{{ a.name }}</strong>{% if a.ticker %} <span class="subtle">{{ a.ticker }}</span>{% endif %}</td>
+                <td>{{ a.currency.value }}</td>
+                <td>{{ a.region or "Sin clasificar" }}</td>
+                <td>{{ a.sector or "Sin clasificar" }}</td>
+                <td class="num">{{ r.value_base|dinero }}</td>
+                <td class="num">{{ "%.1f"|format(100 * r.value_base / alloc.total) }}%</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <p class="hint" style="margin-top:.6rem">Región y sector se editan en la ficha de cada activo (página <a href="/activos">Activos</a>). Las cripto se clasifican solas.</p>
+</section>
+{% else %}
+<section class="card">
+    <div class="empty">{{ icon("inbox", 30) }} Sin posiciones invertidas
+        <div class="empty-acciones">
+            <a class="btn ghost" href="/operaciones">{{ icon("plus", 14) }} Registrar operación</a>
+            <a class="btn ghost" href="/operaciones/importar">{{ icon("upload", 14) }} Importar CSV</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+{% if alloc.total > 0 %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    Chart.defaults.color = "#a9b1c0";
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.maintainAspectRatio = false;
+    const PALETTE = ["#4f8ef7", "#3ecf8e", "#f5b95f", "#f26d6d", "#a06fe0", "#4fc7e0", "#8b93a7"];
+    const donut = (id, data) => new Chart(document.getElementById(id), {
+        type: "doughnut",
+        data: {
+            labels: data.map(d => d[0]),
+            datasets: [{ data: data.map(d => d[1]), backgroundColor: PALETTE, borderWidth: 0 }]
+        },
+        options: { cutout: "62%", plugins: { legend: { position: "right" } } }
+    });
+    donut("chart-divisa", {{ alloc.divisa | tojson }});
+    donut("chart-region", {{ alloc.region | tojson }});
+    donut("chart-sector", {{ alloc.sector | tojson }});
+});
+</script>
+{% endif %}
+{% endblock %}

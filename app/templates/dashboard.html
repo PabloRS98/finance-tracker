@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Dashboard · Patrimonio{% endblock %}
+{% block content %}
+
+{# Hero: la portada responde "¿cuánto tengo y cómo va?" en un vistazo. El detalle
+   vive en las secciones plegables de abajo (estado recordado en localStorage). #}
+<section class="hero-grid">
+    <div class="card stat hero-card">
+        <span class="stat-head">{{ icon("wallet", 16) }} Patrimonio neto</span>
+        <p class="big-number hero-number"><span data-money="{{ net_worth_now }}" data-cur="{{ base_currency }}">{{ net_worth_now|dinero }} <small>{{ base_currency }}</small></span></p>
+        {% if missing_fx %}
+        <p class="day-change negative" title="Sin tipo de cambio para {{ missing_fx|join(', ') }}: esos activos no están sumados">
+            {{ icon("triangle-alert", 14) }} Total parcial · falta cambio {{ missing_fx|join(', ') }}
+        </p>
+        {% endif %}
+        {% if invested.day_change is not none %}
+        <p class="day-change {{ 'positive' if invested.day_change >= 0 else 'negative' }}">
+            {{ "%+.2f"|format(invested.day_change) }} {{ base_currency }}
+            {% if invested.day_change_pct is not none %}({{ "%+.2f"|format(invested.day_change_pct) }}%){% endif %} hoy
+        </p>
+        {% endif %}
+        <div class="spark-box"><canvas id="chart-spark"></canvas></div>
+    </div>
+    <div class="hero-side">
+        <div class="card stat {{ 'positive' if invested.unrealized is not none and invested.unrealized >= 0 else 'negative' }}">
+            <span class="stat-head">{{ icon("briefcase", 16) }} P&amp;L invertido</span>
+            {% if invested.unrealized is not none %}
+            <p class="big-number {{ 'positive' if invested.unrealized >= 0 else 'negative' }}">
+                <span data-money="{{ invested.unrealized }}" data-cur="{{ base_currency }}">{{ invested.unrealized|dinero }} <small>{{ base_currency }}</small></span>{% if invested.pnl_pct is not none %}<small> · {{ "%+.2f"|format(invested.pnl_pct) }}%</small>{% endif %}
+            </p>
+            {% if invested.fx_effect_pct is not none %}
+            <span class="subtle" title="Efecto del tipo de cambio sobre la cartera, aparte del P&L de precio{% if invested.pnl_pct_base is not none %}. Total combinado en {{ base_currency }}: {{ '%+.2f'|format(invested.pnl_pct_base) }}%{% endif %}">
+                Efecto divisa: <span class="{{ 'positive' if invested.fx_effect_pct >= 0 else 'negative' }}">{{ "%+.2f"|format(invested.fx_effect_pct) }}%</span>
+            </span>
+            {% else %}
+            <span class="subtle" title="Sin activos en divisa extranjera: no hay efecto del tipo de cambio">Efecto divisa: —</span>
+            {% endif %}
+            {% if cagr is not none %}
+            <span class="subtle" title="TWR anualizado desde la primera inversión">{{ "%+.2f"|format(cagr) }}% anualizado (CAGR)</span>
+            {% endif %}
+            {% else %}
+            <p class="big-number"><small><a href="/operaciones">Registra operaciones</a> para calcularlo</small></p>
+            {% endif %}
+        </div>
+        <div class="card stat {{ 'positive' if balance_mes >= 0 else 'negative' }}">
+            <span class="stat-head">{{ icon("piggy-bank", 16) }} Balance del mes</span>
+            <p class="big-number {{ 'positive' if balance_mes >= 0 else 'negative' }}">{{ balance_mes|dinero }} <small>{{ base_currency }}</small></p>
+            <span class="subtle">
+                <span class="positive">↑ {{ ingresos_mes|dinero }}</span> ingresos ·
+                <span class="negative">↓ {{ gastos_mes|dinero }}</span> gastos
+            </span>
+        </div>
+    </div>
+</section>
+
+{% if pendientes %}
+<section class="card">
+    <h3>{{ icon("mic") }} Pendientes de aprobar <span class="tag accent">{{ pendientes|length }}</span></h3>
+    <p class="hint">Creados por voz. Revisa, corrige si hace falta, y confirma o rechaza.</p>
+    {% with pendientes_list = pendientes %}{% include "_pending.html" %}{% endwith %}
+</section>
+{% endif %}
+
+<section class="grid-charts">
+    <details class="card collapsible" data-key="evolution" open>
+        <summary>{{ icon("trending-up") }} Evolución del patrimonio</summary>
+        <div class="chart-controls">
+            <div class="range-chips" id="range-chips">
+                <button type="button" data-days="1" title="Curva intradía (muestras cada 15 min)">1D</button>
+                <button type="button" data-days="7">1S</button>
+                <button type="button" data-days="30">1M</button>
+                <button type="button" data-days="182">6M</button>
+                <button type="button" data-days="365">1A</button>
+                <button type="button" data-days="0">Todo</button>
+            </div>
+            <select id="benchmark-select" class="small" style="margin-left:auto" title="Comparar la parte invertida con un índice">
+                <option value="">€ · total e invertido</option>
+                {% for key, b in benchmarks.items() %}
+                <option value="{{ key }}">% vs {{ b.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="chart-box"><canvas id="chart-evolution"></canvas></div>
+        <p class="hint" id="benchmark-hint" hidden>Comparación en % desde el inicio del periodo común: solo la parte invertida contra el índice.</p>
+    </details>
+    <details class="card collapsible" data-key="heatmap" open>
+        <summary>{{ icon("chart-column") }} Mapa de la cartera</summary>
+        {% if heatmap %}
+        <div id="heatmap" class="heatmap" data-items='{{ heatmap | tojson }}'></div>
+        <p class="hint">Superficie = peso en la cartera invertida · color = variación del día.</p>
+        {% else %}
+        <div class="empty">{{ icon("inbox", 28) }} Sin posiciones que mapear
+            <div class="empty-acciones"><a class="btn ghost" href="/operaciones">{{ icon("plus", 14) }} Registrar operación</a></div>
+        </div>
+        {% endif %}
+    </details>
+    <details class="card collapsible" data-key="breakdown" open>
+        <summary>{{ icon("chart-pie") }} Patrimonio por tipo de activo</summary>
+        {% if breakdown_items %}
+        <div class="chart-box"><canvas id="chart-breakdown"></canvas></div>
+        {% else %}
+        <div class="empty">{{ icon("inbox", 28) }} Sin activos que desglosar
+            <div class="empty-acciones"><a class="btn ghost" href="/activos">{{ icon("plus", 14) }} Añadir activo</a></div>
+        </div>
+        {% endif %}
+    </details>
+    <details class="card collapsible" data-key="eurusd" open>
+        <summary>{{ icon("arrow-left-right") }} Euro / Dólar</summary>
+        <p style="margin:.2rem 0 .6rem; display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap">
+            {% if fx_eurusd.rate is none %}
+            <span class="subtle">Tipo de cambio no disponible ahora mismo</span>
+            {% else %}
+            <strong style="font-size:1.35rem; font-variant-numeric:tabular-nums">{{ ("%.4f"|format(fx_eurusd.rate)).replace(".", ",") }} <small class="subtle">USD por 1 EUR</small></strong>
+            {% endif %}
+            {% if fx_eurusd.change_pct is not none %}
+            <span class="{{ 'positive' if fx_eurusd.change_pct >= 0 else 'negative' }}">{{ "%+.2f"|format(fx_eurusd.change_pct) }}% hoy</span>
+            <span class="subtle">{{ fx_eurusd.phrase|capitalize }}</span>
+            {% endif %}
+        </p>
+        {% if fx_eurusd.points|length > 1 %}
+        <div class="range-chips" id="fx-range-chips">
+            <button type="button" data-days="7">1S</button>
+            <button type="button" data-days="30">1M</button>
+            <button type="button" data-days="90">3M</button>
+            <button type="button" data-days="365">1A</button>
+            <button type="button" data-days="0">Todo</button>
+        </div>
+        <div class="chart-box"><canvas id="chart-eurusd"></canvas></div>
+        {% else %}
+        <div class="empty">{{ icon("chart-column", 28) }} El histórico EUR/USD se descarga a diario (job de las 06:30).</div>
+        {% endif %}
+    </details>
+    <details class="card collapsible" data-key="income">
+        <summary>{{ icon("chart-column") }} Ingresos vs gastos (6 meses)</summary>
+        <div class="chart-box"><canvas id="chart-income-expense"></canvas></div>
+    </details>
+    <details class="card collapsible" data-key="categories">
+        <summary>{{ icon("tags") }} Gastos por categoría (este mes)</summary>
+        {% if gastos_por_categoria %}
+        <div class="chart-box"><canvas id="chart-categories"></canvas></div>
+        {% else %}
+        <div class="empty">{{ icon("inbox", 28) }} Sin gastos este mes
+            <div class="empty-acciones"><a class="btn ghost" href="/transacciones">{{ icon("plus", 14) }} Apuntar gasto</a></div>
+        </div>
+        {% endif %}
+    </details>
+</section>
+
+{% if presupuestos %}
+<details class="card collapsible" data-key="budgets">
+    <summary>{{ icon("piggy-bank") }} Presupuestos del mes</summary>
+    {% for p in presupuestos %}
+    <div class="budget-row">
+        <span>{{ p.categoria }}</span>
+        <div class="progress {{ 'over' if p.porcentaje_real > 100 else ('warning' if p.porcentaje_real > 80 else '') }}">
+            <div style="width: {{ p.porcentaje }}%"></div>
+        </div>
+        <span class="num">{{ p.gastado|dinero }} / {{ p.limite|dinero }} {{ base_currency }} ({{ p.porcentaje_real }}%)</span>
+    </div>
+    {% endfor %}
+</details>
+{% endif %}
+
+<details class="card collapsible" data-key="data">
+    <summary>{{ icon("calendar") }} Datos y backup</summary>
+    <form method="post" action="/patrimonio/snapshot-manual" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label for="snap-fecha">Fecha</label>
+            <input id="snap-fecha" type="date" name="fecha" value="{{ hoy }}" required>
+        </div>
+        <div class="field">
+            <label for="snap-valor">Valor total ({{ base_currency }})</label>
+            <input id="snap-valor" type="number" step="0.01" name="valor" placeholder="0.00" required>
+        </div>
+        <button type="submit">{{ icon("check", 15) }} Guardar punto histórico</button>
+    </form>
+    <div class="inline-form" style="margin-top:.9rem">
+        <a class="btn ghost small" href="/patrimonio/backup">{{ icon("download", 14) }} Descargar backup de la BD</a>
+        <span class="hint">Copia automática diaria a las 04:45 en el volumen (/data/backups, se conservan {{ backup_keep }}).</span>
+    </div>
+</details>
+
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    Chart.defaults.color = "#a9b1c0";
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    Chart.defaults.borderColor = "rgba(48, 58, 77, .35)";
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+    Chart.defaults.plugins.legend.labels.boxHeight = 12;
+    Chart.defaults.maintainAspectRatio = false;
+    const PALETTE = ["#4f8ef7", "#3ecf8e", "#f5b95f", "#f26d6d", "#a06fe0", "#4fc7e0", "#8b93a7"];
+
+    const evolutionData = {{ evolution | tojson }};
+    const intradayData = {{ intraday | tojson }};
+    const benchmarks = {{ benchmarks | tojson }};
+
+    // ----- Sparkline del hero (últimos 30 días) -----
+    const sparkData = evolutionData.slice(-30);
+    if (sparkData.length > 1) {
+        const sctx = document.getElementById("chart-spark").getContext("2d");
+        const sgrad = sctx.createLinearGradient(0, 0, 0, 58);
+        sgrad.addColorStop(0, "rgba(79, 142, 247, .35)");
+        sgrad.addColorStop(1, "rgba(79, 142, 247, 0)");
+        new Chart(sctx, {
+            type: "line",
+            data: {
+                labels: sparkData.map(p => p.fecha),
+                datasets: [{ data: sparkData.map(p => p.total), borderColor: "#4f8ef7",
+                             backgroundColor: sgrad, fill: true, tension: .3, pointRadius: 0, borderWidth: 1.5 }]
+            },
+            options: {
+                scales: { x: { display: false }, y: { display: false } },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                animation: false,
+            }
+        });
+    }
+
+    // ----- Evolución: rango temporal + comparación con benchmark -----
+    const evoCtx = document.getElementById("chart-evolution").getContext("2d");
+    const gradient = evoCtx.createLinearGradient(0, 0, 0, 250);
+    gradient.addColorStop(0, "rgba(79, 142, 247, .32)");
+    gradient.addColorStop(1, "rgba(79, 142, 247, 0)");
+    const benchSel = document.getElementById("benchmark-select");
+    let evoChart = null;
+    let rangeDays = parseInt(localStorage.getItem("dash.range") || "0", 10);
+
+    const inRange = () => {
+        if (!rangeDays) return evolutionData;
+        const cut = new Date(Date.now() - rangeDays * 864e5).toISOString().slice(0, 10);
+        return evolutionData.filter(p => p.fecha >= cut);
+    };
+
+    function renderEvolution(benchKey) {
+        if (evoChart) evoChart.destroy();
+
+        // Rango 1D: curva intradía (muestras del job cada 15 min); sin benchmark (serie diaria)
+        if (rangeDays === 1) {
+            if (intradayData.length < 2) {
+                window.appToast("Aún no hay muestras intradía (se toma una cada 15 min)", "info");
+                rangeDays = 7;
+                localStorage.setItem("dash.range", "7");
+                markActive();
+                renderEvolution(benchKey);
+                return;
+            }
+            benchSel.value = "";
+            benchSel.disabled = true;
+            document.getElementById("benchmark-hint").hidden = true;
+            evoChart = new Chart(evoCtx, {
+                type: "line",
+                data: {
+                    labels: intradayData.map(p => new Date(p.ts).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })),
+                    datasets: [{
+                        label: "Patrimonio ({{ base_currency }})",
+                        data: intradayData.map(p => p.total),
+                        borderColor: "#4f8ef7", backgroundColor: gradient, fill: true,
+                        tension: 0.25, pointRadius: 0, borderWidth: 2,
+                    }, {
+                        label: "Invertido ({{ base_currency }})",
+                        data: intradayData.map(p => p.invertido),
+                        borderColor: "#a06fe0", borderDash: [5, 4], fill: false,
+                        tension: 0.25, pointRadius: 0, borderWidth: 1.5,
+                    }]
+                },
+                options: { plugins: { legend: { display: true } } }
+            });
+            return;
+        }
+
+        benchSel.disabled = false;
+        document.getElementById("benchmark-hint").hidden = !benchKey;
+        const data = inRange();
+
+        if (!benchKey) {
+            evoChart = new Chart(evoCtx, {
+                type: "line",
+                data: {
+                    labels: data.map(p => p.fecha),
+                    datasets: [{
+                        label: "Patrimonio ({{ base_currency }})",
+                        data: data.map(p => p.total),
+                        borderColor: "#4f8ef7", backgroundColor: gradient, fill: true,
+                        tension: 0.25, pointRadius: data.length > 40 ? 0 : 2.5, borderWidth: 2,
+                    }, {
+                        label: "Invertido ({{ base_currency }})",
+                        data: data.map(p => p.invertido),
+                        borderColor: "#a06fe0", borderDash: [5, 4], fill: false,
+                        tension: 0.25, pointRadius: 0, borderWidth: 1.5,
+                    }, {
+                        // Lo puesto de tu bolsillo, sin revalorización: el hueco
+                        // que deja contra "Invertido" es la ganancia.
+                        label: "Aportado ({{ base_currency }})",
+                        data: data.map(p => p.aportado),
+                        borderColor: "#8a94a6", borderDash: [2, 3], fill: false,
+                        tension: 0, pointRadius: 0, borderWidth: 1.5,
+                    }]
+                },
+                options: { plugins: { legend: { display: true } } }
+            });
+            return;
+        }
+
+        // Modo comparación: % acumulado de la parte invertida vs el índice,
+        // desde la primera fecha común (dentro del rango) con posición invertida
+        const bench = benchmarks[benchKey];
+        const closes = Object.fromEntries(bench.points.map(p => [p.fecha, p.close]));
+        let lastClose = null;
+        const common = [];
+        for (const p of data) {
+            if (closes[p.fecha] !== undefined) lastClose = closes[p.fecha];
+            if (p.invertido > 0 && lastClose !== null) common.push({ fecha: p.fecha, twr: p.twr, close: lastClose });
+        }
+        if (common.length < 2) {
+            window.appToast("Aún no hay histórico suficiente para comparar (se descarga a diario)", "info");
+            benchSel.value = "";
+            renderEvolution("");
+            return;
+        }
+        const base = common[0];
+        const baseIdx = 1 + base.twr / 100;
+        evoChart = new Chart(evoCtx, {
+            type: "line",
+            data: {
+                labels: common.map(p => p.fecha),
+                datasets: [{
+                    label: "Cartera (TWR) %",
+                    data: common.map(p => 100 * ((1 + p.twr / 100) / baseIdx - 1)),
+                    borderColor: "#4f8ef7", fill: false, tension: 0.25, pointRadius: 0, borderWidth: 2,
+                }, {
+                    label: bench.label + " %",
+                    data: common.map(p => 100 * (p.close / base.close - 1)),
+                    borderColor: "#f5b95f", fill: false, tension: 0.25, pointRadius: 0, borderWidth: 1.5,
+                }]
+            },
+            options: {
+                plugins: { legend: { display: true } },
+                scales: { y: { ticks: { callback: v => v.toFixed(0) + "%" } } }
+            }
+        });
+    }
+
+    const chips = document.querySelectorAll("#range-chips button");
+    const markActive = () => chips.forEach(b => b.classList.toggle("active", parseInt(b.dataset.days, 10) === rangeDays));
+    markActive();
+    chips.forEach(b => b.addEventListener("click", () => {
+        rangeDays = parseInt(b.dataset.days, 10);
+        localStorage.setItem("dash.range", String(rangeDays));
+        markActive();
+        renderEvolution(benchSel.value);
+    }));
+    benchSel.addEventListener("change", e => renderEvolution(e.target.value));
+
+    // ----- EUR/USD chart with time range filters -----
+    let fxChart = null;
+    let fxRange = 0;  // 0 = all
+
+    function renderEURUSD() {
+        if (fxChart) fxChart.destroy();
+        const cutDays = fxRange;
+        let filtered = window.fxPoints;
+        if (cutDays > 0) {
+            const cut = new Date(Date.now() - cutDays * 864e5).toISOString().slice(0, 10);
+            filtered = window.fxPoints.filter(p => p.fecha >= cut);
+        }
+        fxChart = new Chart(document.getElementById("chart-eurusd"), {
+            type: "line",
+            data: {
+                labels: filtered.map(p => p.fecha),
+                datasets: [{
+                    label: "EUR/USD",
+                    data: filtered.map(p => p.rate),
+                    borderColor: "#f5b95f", fill: false, tension: .25, pointRadius: 0, borderWidth: 2,
+                }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+
+    const fxChips = document.querySelectorAll("#fx-range-chips button");
+    const markFXActive = () => fxChips.forEach(b => b.classList.toggle("active", parseInt(b.dataset.days, 10) === fxRange));
+    markFXActive();
+    fxChips.forEach(b => b.addEventListener("click", () => {
+        fxRange = parseInt(b.dataset.days, 10);
+        markFXActive();
+        renderEURUSD();
+    }));
+
+    // ----- Secciones plegables: estado en localStorage + init perezoso de gráficas
+    // (Chart.js pinta a altura 0 dentro de un <details> cerrado) -----
+    const inits = {
+        evolution: () => renderEvolution(benchSel.value),
+        breakdown: () => {
+            {% if breakdown_items %}
+            new Chart(document.getElementById("chart-breakdown"), {
+                type: "doughnut",
+                data: {
+                    labels: {{ breakdown_items | map(attribute=0) | list | tojson }},
+                    datasets: [{ data: {{ breakdown_items | map(attribute=1) | list | tojson }}, backgroundColor: PALETTE, borderWidth: 0 }]
+                },
+                options: { cutout: "62%", plugins: { legend: { position: "right" } } }
+            });
+            {% endif %}
+        },
+        eurusd: () => {
+            {% if fx_eurusd.points|length > 1 %}
+            window.fxPoints = {{ fx_eurusd.points | tojson }};
+            renderEURUSD();
+            {% endif %}
+        },
+        income: () => {
+            new Chart(document.getElementById("chart-income-expense"), {
+                type: "bar",
+                data: {
+                    labels: {{ meses_labels | tojson }},
+                    datasets: [
+                        { label: "Ingresos", data: {{ ingresos_serie | tojson }}, backgroundColor: "#3ecf8e", borderRadius: 4 },
+                        { label: "Gastos", data: {{ gastos_serie | tojson }}, backgroundColor: "#f26d6d", borderRadius: 4 }
+                    ]
+                }
+            });
+        },
+        categories: () => {
+            {% if gastos_por_categoria %}
+            new Chart(document.getElementById("chart-categories"), {
+                type: "doughnut",
+                data: {
+                    labels: {{ gastos_por_categoria.keys() | list | tojson }},
+                    datasets: [{ data: {{ gastos_por_categoria.values() | list | tojson }}, backgroundColor: PALETTE, borderWidth: 0 }]
+                },
+                options: { cutout: "62%", plugins: { legend: { position: "right" } } }
+            });
+            {% endif %}
+        },
+    };
+
+    document.querySelectorAll("details.collapsible").forEach(d => {
+        const key = d.dataset.key;
+        const saved = localStorage.getItem("dash.open." + key);
+        if (saved !== null) d.open = saved === "1";
+        d.addEventListener("toggle", () => {
+            localStorage.setItem("dash.open." + key, d.open ? "1" : "0");
+            if (d.open && inits[key]) { const fn = inits[key]; inits[key] = null; fn(); }
+        });
+        if (d.open && inits[key]) { const fn = inits[key]; inits[key] = null; fn(); }
+    });
+});
+</script>
+{% endblock %}

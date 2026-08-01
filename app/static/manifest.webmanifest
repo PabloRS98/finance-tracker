@@ -1,0 +1,37 @@
+{
+  "name": "Tracker de Patrimonio",
+  "short_name": "Patrimonio",
+  "description": "Patrimonio, inversiones y gastos, en local y sin APIs de pago.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0d12",
+  "theme_color": "#4f8ef7",
+  "icons": [
+    {
+      "src": "/static/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Activos", "url": "/activos" },
+    { "name": "Operaciones", "url": "/operaciones" },
+    { "name": "Movimientos", "url": "/transacciones" }
+  ]
+}

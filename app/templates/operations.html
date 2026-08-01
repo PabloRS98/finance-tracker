@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}Operaciones · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    {% if assets %}
+    {# Plegado por defecto: a esta página se entra a consultar el historial, no
+       a registrar. Se abre solo si vienes de "comprar" un valor en seguimiento. #}
+    <details class="add-asset" {% if activo %}open{% endif %}>
+        <summary>{{ icon("plus", 15) }} Registrar operación</summary>
+    <form method="post" action="/operaciones" class="form-grid" style="margin-top:.8rem">{{ csrf_input(request) }}
+        <div class="field">
+            <label for="op-asset">Activo</label>
+            <select id="op-asset" name="asset_id" required>
+                {% for a in assets %}
+                <option value="{{ a.id }}" {% if activo == a.id %}selected{% endif %}>{{ a.name }}{% if a.ticker %} ({{ a.ticker }}){% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="op-type">Tipo</label>
+            <select id="op-type" name="type">
+                <option value="compra">Compra</option>
+                <option value="venta">Venta</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="op-date">Fecha</label>
+            <input id="op-date" type="date" name="date" value="{{ hoy }}" required>
+        </div>
+        <div class="field">
+            <label for="op-qty">Cantidad</label>
+            <input id="op-qty" type="number" step="any" min="0" name="quantity" placeholder="0" required>
+        </div>
+        <div class="field">
+            <label for="op-price">Precio unitario</label>
+            <input id="op-price" type="number" step="any" min="0" name="unit_price" placeholder="0.00" required>
+        </div>
+        <div class="field">
+            <label for="op-fee">Comisión</label>
+            <input id="op-fee" type="number" step="any" min="0" name="fee" placeholder="0.00">
+        </div>
+        <div class="field">
+            <label for="op-account">Cuenta</label>
+            <select id="op-account" name="account_id">
+                <option value="">Sin cuenta</option>
+                {% for c in accounts %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit">{{ icon("plus", 15) }} Registrar</button>
+    </form>
+    <p class="hint" style="margin-top:.8rem">Precio y comisión en la divisa del activo. La cantidad, el coste medio y el P&amp;L del activo se calculan a partir de sus operaciones.</p>
+    <div class="inline-form" style="margin-top:.6rem">
+        <button id="btn-voice" type="button" data-voice-btn class="ghost">{{ icon("mic", 16) }} Por voz</button>
+        <span id="voice-status" class="hint"></span>
+        <span class="subtle">"compré 0,5 bitcoin a 54.000" · "vendí 2 apple a 300 el lunes pasado"</span>
+    </div>
+    </details>
+    {% else %}
+    <h3>{{ icon("plus") }} Registrar operación</h3>
+    <div class="empty">{{ icon("inbox", 30) }} Primero crea un activo invertible (acción/ETF/fondo o cripto) en <a href="/activos">Activos</a>.</div>
+    {% endif %}
+</section>
+
+{% if pending %}
+<section class="card">
+    <h3>{{ icon("mic") }} Operaciones pendientes de aprobar <span class="tag accent">{{ pending|length }}</span></h3>
+    <p class="hint">Creadas por voz. Revisa cantidad y precio, corrige si hace falta, y confirma o rechaza.</p>
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr><th>Fecha</th><th>Activo</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Precio</th><th class="num">Comisión</th><th>Cuenta</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for op in pending %}
+            <tr>
+                <td>{{ op.date.strftime("%d/%m/%Y") }}</td>
+                <td><strong>{{ op.asset.name }}</strong></td>
+                <td>
+                    {% if op.type.value == "compra" %}<span class="tag positive">Compra</span>
+                    {% else %}<span class="tag negative">Venta</span>{% endif %}
+                </td>
+                <form method="post" action="/operaciones/{{ op.id }}/confirmar" id="pend-op-{{ op.id }}">{{ csrf_input(request) }}</form>
+                <td class="num"><input form="pend-op-{{ op.id }}" type="number" step="any" min="0" name="quantity" value="{{ op.quantity }}" style="max-width:7.5rem" required></td>
+                <td class="num"><input form="pend-op-{{ op.id }}" type="number" step="any" min="0" name="unit_price" value="{{ op.unit_price }}" style="max-width:7.5rem" required></td>
+                <td class="num"><input form="pend-op-{{ op.id }}" type="number" step="any" min="0" name="fee" placeholder="0" style="max-width:6rem"></td>
+                <td>
+                    <select form="pend-op-{{ op.id }}" name="account_id">
+                        <option value="">Sin cuenta</option>
+                        {% for c in accounts %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <span class="actions">
+                        <button form="pend-op-{{ op.id }}" type="submit" class="small icon-btn" title="Confirmar">{{ icon("check", 14) }}</button>
+                        <form method="post" action="/operaciones/{{ op.id }}/rechazar">{{ csrf_input(request) }}
+                            <button type="submit" class="danger small icon-btn" title="Rechazar">{{ icon("x", 14) }}</button>
+                        </form>
+                    </span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</section>
+{% endif %}
+
+{% if filtered_asset and summary %}
+<section class="grid-summary">
+    <div class="card stat">
+        <span class="stat-head">{{ icon("coins", 16) }} {{ filtered_asset.name }} · posición</span>
+        <p class="big-number">{{ summary.quantity if summary.quantity is not none else "-" }}</p>
+    </div>
+    <div class="card stat">
+        <span class="stat-head">{{ icon("scale", 16) }} Coste medio</span>
+        <p class="big-number">{{ summary.avg_cost|dinero if summary.avg_cost is not none else "-" }} <small>{{ filtered_asset.currency.value }}</small></p>
+    </div>
+    <div class="card stat">
+        <span class="stat-head">{{ icon("wallet", 16) }} Valor actual</span>
+        <p class="big-number">{{ summary.value|dinero if summary.value is not none else "-" }} <small>{{ filtered_asset.currency.value }}</small></p>
+    </div>
+    <div class="card stat {{ 'positive' if summary.unrealized is not none and summary.unrealized >= 0 else 'negative' }}">
+        <span class="stat-head">{{ icon("trending-up", 16) }} P&amp;L no realizado</span>
+        <p class="big-number {{ 'positive' if summary.unrealized is not none and summary.unrealized >= 0 else 'negative' }}">
+            {{ summary.unrealized|dinero if summary.unrealized is not none else "-" }}
+            {% if summary.pnl_pct is not none %}<small>({{ "%+.2f"|format(summary.pnl_pct) }}%)</small>{% endif %}
+        </p>
+    </div>
+</section>
+{% endif %}
+
+<section class="card">
+    <h3>{{ icon("briefcase") }} Historial
+        {% if total %}<span class="tag accent">{{ total }}</span>{% endif %}
+        <a class="btn ghost small" href="/operaciones/importar" style="margin-left:auto">{{ icon("upload", 14) }} Importar CSV</a>
+    </h3>
+    {% set base = "/operaciones?" ~ ("activo=" ~ activo ~ "&" if activo else "") %}
+    <div class="filtro-chips">
+        <a class="chip {{ 'active' if not tipo and not cuenta else '' }}"
+           href="/operaciones{{ '?activo=' ~ activo if activo else '' }}">Todas</a>
+        <a class="chip {{ 'active' if tipo == 'compra' else '' }}"
+           href="{{ base }}tipo=compra{{ '&cuenta=' ~ cuenta if cuenta else '' }}">{{ icon("trending-up", 13) }} Compras</a>
+        <a class="chip {{ 'active' if tipo == 'venta' else '' }}"
+           href="{{ base }}tipo=venta{{ '&cuenta=' ~ cuenta if cuenta else '' }}">{{ icon("trending-down", 13) }} Ventas</a>
+        {% for c in accounts %}
+        <a class="chip {{ 'active' if cuenta == c.id else '' }}"
+           href="{{ base }}cuenta={{ c.id }}{{ '&tipo=' ~ tipo if tipo else '' }}">{{ icon("landmark", 13) }} {{ c.name }}</a>
+        {% endfor %}
+    </div>
+    <form method="get" action="/operaciones" class="inline-form" data-noload style="margin-top:.5rem">
+        <label for="filter-asset" class="subtle">Activo</label>
+        <select id="filter-asset" name="activo" onchange="this.form.submit()">
+            <option value="">Todos</option>
+            {% for a in assets %}
+            <option value="{{ a.id }}" {% if activo == a.id %}selected{% endif %}>{{ a.name }}</option>
+            {% endfor %}
+        </select>
+        {% if tipo %}<input type="hidden" name="tipo" value="{{ tipo }}">{% endif %}
+        {% if cuenta %}<input type="hidden" name="cuenta" value="{{ cuenta }}">{% endif %}
+    </form>
+    {% if operations %}
+    {# apilable: en móvil cada fila se convierte en tarjeta (ver style.css) #}
+    <div class="table-wrap">
+    <table class="apilable">
+        <thead>
+            <tr>
+                <th>Fecha</th><th>Activo</th><th>Tipo</th><th class="num">Cantidad</th>
+                <th class="num">Precio</th><th class="num">Comisión</th><th class="num">Importe</th><th>Cuenta</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% set ns = namespace(mes=None) %}
+        {% for op in operations %}
+            {# Separador al cambiar de mes: escanear 50 filas de fechas sueltas
+               cuesta mucho más que saltar de "Marzo 2026" a "Febrero 2026". #}
+            {% if op.date.strftime("%Y-%m") != ns.mes %}
+            {% set ns.mes = op.date.strftime("%Y-%m") %}
+            <tr class="separador-mes"><td colspan="9">{{ mes_anio(op.date) }}</td></tr>
+            {% endif %}
+            <tr>
+                <td data-col="Fecha">{{ op.date.strftime("%d/%m/%Y") }}</td>
+                <td data-col="Activo"><span class="celda-activo">{{ avatar(op.asset, 24) }}<strong>{{ op.asset.name }}</strong>{% if op.asset.ticker %} <span class="subtle">{{ op.asset.ticker }}</span>{% endif %}</span></td>
+                <td data-col="Tipo">
+                    {% if op.type.value == "compra" %}<span class="tag positive">{{ icon("trending-up", 13) }} Compra</span>
+                    {% else %}<span class="tag negative">{{ icon("trending-down", 13) }} Venta</span>{% endif %}
+                </td>
+                <td class="num" data-col="Cantidad">{{ op.quantity }}</td>
+                <td class="num" data-col="Precio">{{ op.unit_price|dinero }} {{ op.asset.currency.value }}</td>
+                <td class="num" data-col="Comisión">{{ op.fee|dinero if op.fee else "-" }}</td>
+                <td class="num" data-col="Importe"><strong>{{ (op.quantity * op.unit_price)|dinero }}</strong></td>
+                <td data-col="Cuenta">{% if op.account %}<span class="tag">{{ icon("landmark", 13) }} {{ op.account.name }}</span>{% else %}<span class="subtle">-</span>{% endif %}</td>
+                <td>
+                    <span class="actions">
+                        <button type="button" class="ghost small icon-btn" data-open-dialog="#dlg-op-{{ op.id }}" title="Editar">{{ icon("pencil", 14) }}</button>
+                        <form method="post" action="/operaciones/{{ op.id }}/eliminar" data-confirm="¿Eliminar esta operación de &quot;{{ op.asset.name }}&quot;?">{{ csrf_input(request) }}
+                            <button type="submit" class="danger small icon-btn" title="Eliminar">{{ icon("trash-2", 14) }}</button>
+                        </form>
+                    </span>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    {% if total_paginas > 1 %}
+    <div class="pagination">
+        {% set qs_activo = "&activo=" ~ activo if activo else "" %}
+        {% if pagina > 1 %}
+        <a class="btn ghost small" href="/operaciones?pagina={{ pagina - 1 }}{{ qs_activo }}">{{ icon("chevron-left", 14) }} Anterior</a>
+        {% endif %}
+        <span class="subtle">Página {{ pagina }} de {{ total_paginas }}</span>
+        {% if pagina < total_paginas %}
+        <a class="btn ghost small" href="/operaciones?pagina={{ pagina + 1 }}{{ qs_activo }}">Siguiente {{ icon("chevron-right", 14) }}</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">{{ icon("inbox", 30) }} Sin operaciones{% if activo %} para este activo{% endif %}
+        <div class="empty-acciones">
+            <button type="button" class="primary" onclick="document.querySelector('details.add-asset').open = true; document.querySelector('details.add-asset').scrollIntoView({block:'center'})">{{ icon("plus", 14) }} Registrar</button>
+            <a class="btn ghost" href="/operaciones/importar">{{ icon("upload", 14) }} Importar CSV</a>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+<section class="card">
+    <h3>{{ icon("landmark") }} Cuentas y plataformas</h3>
+    <form method="post" action="/cuentas" class="inline-form">{{ csrf_input(request) }}
+        <input type="text" name="name" placeholder="Trade Republic, OKX, ING..." required>
+        <select name="kind">
+            <option value="broker">Broker</option>
+            <option value="exchange">Exchange</option>
+            <option value="banco">Banco</option>
+            <option value="otro">Otro</option>
+        </select>
+        <button type="submit">{{ icon("plus", 15) }} Crear</button>
+    </form>
+    {% if accounts %}
+    <div class="badges" style="margin-top:.9rem">
+        {% for c in accounts %}
+        <span class="tag">
+            {{ icon("landmark", 13) }} {{ c.name }} <span class="subtle">· {{ c.kind.value }}</span>
+            <button type="button" class="ghost small icon-btn" data-open-dialog="#dlg-account-{{ c.id }}" title="Editar">{{ icon("pencil", 12) }}</button>
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+{% for op in operations %}
+<dialog id="dlg-op-{{ op.id }}">
+    <h3>{{ icon("pencil") }} Editar operación</h3>
+    <form method="post" action="/operaciones/{{ op.id }}/editar" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label>Activo</label>
+            <select name="asset_id">
+                {% for a in assets %}<option value="{{ a.id }}" {% if op.asset_id == a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Tipo</label>
+            <select name="type">
+                <option value="compra" {% if op.type.value == "compra" %}selected{% endif %}>Compra</option>
+                <option value="venta" {% if op.type.value == "venta" %}selected{% endif %}>Venta</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Fecha</label>
+            <input type="date" name="date" value="{{ op.date.isoformat() }}" required>
+        </div>
+        <div class="field">
+            <label>Cantidad</label>
+            <input type="number" step="any" min="0" name="quantity" value="{{ op.quantity }}" required>
+        </div>
+        <div class="field">
+            <label>Precio unitario</label>
+            <input type="number" step="any" min="0" name="unit_price" value="{{ op.unit_price }}" required>
+        </div>
+        <div class="field">
+            <label>Comisión</label>
+            <input type="number" step="any" min="0" name="fee" value="{{ op.fee or '' }}">
+        </div>
+        <div class="field">
+            <label>Cuenta</label>
+            <select name="account_id">
+                <option value="">Sin cuenta</option>
+                {% for c in accounts %}<option value="{{ c.id }}" {% if op.account_id == c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="dialog-actions full">
+            <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+            <button type="submit">{{ icon("check", 15) }} Guardar</button>
+        </div>
+    </form>
+</dialog>
+{% endfor %}
+
+{% for c in accounts %}
+<dialog id="dlg-account-{{ c.id }}">
+    <h3>{{ icon("pencil") }} Editar cuenta</h3>
+    <form method="post" action="/cuentas/{{ c.id }}/editar" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label>Nombre</label>
+            <input type="text" name="name" value="{{ c.name }}" required>
+        </div>
+        <div class="field">
+            <label>Tipo</label>
+            <select name="kind">
+                <option value="broker" {% if c.kind.value == "broker" %}selected{% endif %}>Broker</option>
+                <option value="exchange" {% if c.kind.value == "exchange" %}selected{% endif %}>Exchange</option>
+                <option value="banco" {% if c.kind.value == "banco" %}selected{% endif %}>Banco</option>
+                <option value="otro" {% if c.kind.value == "otro" %}selected{% endif %}>Otro</option>
+            </select>
+        </div>
+        <div class="dialog-actions full">
+            <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+            <button type="submit">{{ icon("check", 15) }} Guardar</button>
+        </div>
+    </form>
+    <form method="post" action="/cuentas/{{ c.id }}/eliminar" data-confirm="¿Eliminar la cuenta &quot;{{ c.name }}&quot;? Sus operaciones quedarán sin cuenta." style="margin-top:.6rem">{{ csrf_input(request) }}
+        <button type="submit" class="danger small">{{ icon("trash-2", 14) }} Eliminar cuenta</button>
+    </form>
+</dialog>
+{% endfor %}
+
+{% endblock %}

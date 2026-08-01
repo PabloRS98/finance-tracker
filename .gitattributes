@@ -1,0 +1,7 @@
+# Los ficheros que se ejecutan dentro del contenedor tienen que conservar
+# saltos de línea LF aunque se clone en Windows con core.autocrlf=true: el
+# build copia el fichero tal y como está en el árbol de trabajo, y con CRLF el
+# shebang queda como "#!/bin/sh\r", ante lo que Linux responde
+# "no such file or directory" y el contenedor no arranca.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf

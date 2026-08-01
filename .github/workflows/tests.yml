@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        # faster-whisper y pymupdf solo hacen falta para voz/PDF en runtime y
+        # pesan mucho: los tests que los tocan los parchean, así que fuera del CI.
+        run: |
+          grep -v -E '^(faster-whisper|pymupdf)' requirements.txt > ci-requirements.txt
+          pip install -r ci-requirements.txt pytest
+
+      - name: Tests
+        # DB_PATH fuera de /data: el runner no tiene el volumen del contenedor
+        env:
+          DB_PATH: ${{ runner.temp }}/finance-ci.db
+        run: pytest -q

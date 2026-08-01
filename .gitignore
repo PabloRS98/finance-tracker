@@ -1,0 +1,48 @@
+# Datos sensibles
+.env
+.env.*
+# La plantilla no lleva secretos y es lo primero que necesita un clon nuevo:
+# sin esta excepción, ".env.*" también la ocultaba.
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+# El WAL y el índice compartido llevan escrituras que aún no están en el .db, y
+# `*.db` no los caza: el sufijo va DESPUÉS de la extensión.
+*.db-wal
+*.db-shm
+*.db-journal
+/data/
+/backups/
+
+# Extractos de banco/broker. El flujo normal es dejar el CSV o el PDF a mano
+# para importarlo: si uno cae en el repo, un `git add -A` publicaría el
+# histórico completo de movimientos. Los ficheros de ejemplo de los tests van
+# embebidos en el propio test, no como archivos sueltos.
+*.csv
+*.pdf
+*.xlsx
+*.ofx
+*.qif
+/import-inbox/
+
+# Tokens y claves
+*.token
+*secret*
+*credential*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Importar operaciones · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    <h3>{{ icon("upload") }} Importar operaciones</h3>
+    <form method="post" action="/operaciones/importar/preview" enctype="multipart/form-data" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label for="imp-file">Archivo (CSV o PDF)</label>
+            <input id="imp-file" type="file" name="archivo" accept=".csv,.pdf,text/csv,application/pdf" required>
+        </div>
+        <div class="field">
+            <label for="imp-format">Formato</label>
+            <select id="imp-format" name="formato">
+                {% for key, imp in importers.items() %}
+                <option value="{{ key }}" {% if preview and preview.formato == key %}selected{% endif %}>{{ imp.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="imp-account">Cuenta destino</label>
+            <select id="imp-account" name="account_id">
+                <option value="">Sin cuenta</option>
+                {% for c in accounts %}
+                <option value="{{ c.id }}" {% if preview and preview.account_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">{{ icon("search", 15) }} Previsualizar</button>
+    </form>
+    <p class="hint" style="margin-top:.8rem">
+        Nada se guarda hasta que confirmes la previsualización. Reimportar el mismo archivo no duplica:
+        cada operación lleva una huella (fecha + activo + cantidad + precio).
+        Dividendos y movimientos de efectivo se omiten. Para brokers aún no soportados usa el
+        <strong>CSV genérico</strong> con cabeceras <code>fecha,tipo,nombre,ticker,isin,cantidad,precio,comision,divisa,clase</code>
+        (tipo: compra/venta · divisa: cualquier código BCE, ej. EUR/USD/GBP/HKD · clase: accion/cripto).
+    </p>
+</section>
+
+{% if preview %}
+<section class="card">
+    <h3>{{ icon("search") }} Previsualización · {{ preview.formato_label }}
+        <span class="tag accent">{{ preview.importables }} importables</span>
+    </h3>
+    {% if preview.skipped %}
+    <p class="hint">Omitidas por el formato:
+        {% for reason, count in preview.skipped.items() %}{{ count }} × {{ reason }}{% if not loop.last %} · {% endif %}{% endfor %}
+    </p>
+    {% endif %}
+    {% if preview.filas %}
+    <form method="post" action="/operaciones/importar/confirmar">{{ csrf_input(request) }}
+        <input type="hidden" name="account_id" value="{{ preview.account_id or '' }}">
+        <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th></th><th>Fecha</th><th>Activo</th><th>Tipo</th><th class="num">Cantidad</th>
+                    <th class="num">Precio</th><th class="num">Comisión</th><th>Divisa</th><th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for it in preview.filas %}{% set r = it.row %}
+                <tr>
+                    <td>
+                        {% if it.status_kind == "ok" %}
+                        <input type="checkbox" name="rows" value="{{ it.payload|e }}" checked>
+                        {% elif it.status_kind == "dup" %}
+                        <input type="checkbox" name="rows" value="{{ it.payload|e }}">
+                        {% else %}
+                        <input type="checkbox" disabled>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.date.strftime("%d/%m/%Y") if r.date else "-" }}</td>
+                    <td>
+                        <strong>{{ r.name or r.ticker or r.isin or "?" }}</strong>
+                        {% if r.ticker %}<span class="subtle">{{ r.ticker }}</span>{% elif r.isin %}<span class="subtle">{{ r.isin }}</span>{% endif %}
+                        {% if it.asset %}<span class="tag positive">{{ icon("check", 12) }} {{ it.asset.name }}</span>
+                        {% elif it.status_kind != "error" %}<span class="tag warning">{{ icon("sparkles", 12) }} nuevo</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if r.type == "compra" %}<span class="tag positive">Compra</span>
+                        {% else %}<span class="tag negative">Venta</span>{% endif %}
+                    </td>
+                    <td class="num">{{ r.quantity if r.quantity is not none else "-" }}</td>
+                    <td class="num">{{ r.unit_price|dinero if r.unit_price is not none else "-" }}</td>
+                    <td class="num">{{ r.fee|dinero if r.fee else "-" }}</td>
+                    <td>{{ r.currency }}</td>
+                    <td>
+                        {% if it.status_kind == "ok" %}<span class="tag positive">{{ it.status }}</span>
+                        {% elif it.status_kind == "dup" %}<span class="tag">{{ it.status }}</span>
+                        {% else %}<span class="tag negative">{{ icon("triangle-alert", 12) }} {{ it.status }}</span>{% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <div class="dialog-actions" style="margin-top:1rem">
+            <a class="btn ghost" href="/operaciones/importar">{{ icon("x", 15) }} Cancelar</a>
+            <button type="submit">{{ icon("check", 15) }} Importar seleccionadas</button>
+        </div>
+    </form>
+    {% else %}
+    <div class="empty">{{ icon("inbox", 30) }} El archivo no contiene operaciones reconocibles.</div>
+    {% endif %}
+</section>
+{% endif %}
+
+{% endblock %}

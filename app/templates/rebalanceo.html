@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}Rebalanceo · Patrimonio{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <h2>{{ icon("scale") }} Rebalanceo</h2>
+    <a href="/analisis" class="ghost">Volver a análisis</a>
+</div>
+
+<p class="hint">
+    Fija el peso que quieres para cada activo y la app calcula cuánto te separa del objetivo.
+    No ejecuta nada ni propone ventas: vender para rebalancear cristaliza plusvalías y su peaje
+    fiscal, así que la vía por defecto es <strong>comprar lo que falta con dinero nuevo</strong>.
+</p>
+
+<section class="card">
+    <h3>{{ icon("plus") }} Peso objetivo</h3>
+    <form method="post" action="/analisis/rebalanceo/objetivos"
+          style="display:flex; gap:.4rem; flex-wrap:wrap; align-items:flex-end">{{ csrf_input(request) }}
+        <div class="field" style="flex:1 1 14rem">
+            <label for="rb-activo">Activo</label>
+            <select id="rb-activo" name="asset_id" required>
+                {% for a in invertibles %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field" style="flex:0 1 7rem">
+            <label for="rb-pct">Peso (%)</label>
+            <input id="rb-pct" type="number" step="0.1" min="0.1" max="100" name="porcentaje"
+                   inputmode="decimal" required placeholder="20">
+        </div>
+        <button type="submit" class="primary">Fijar</button>
+    </form>
+</section>
+
+{% if detalle.filas %}
+<section class="card">
+    <h3>{{ icon("scale") }} Desviación
+        <span class="tag {{ 'warning' if detalle.objetivo_total > 100.5 else '' }}">
+            objetivos: {{ "%g"|format(detalle.objetivo_total) }}%
+        </span>
+    </h3>
+
+    <form method="get" action="/analisis/rebalanceo" class="inline-form" data-noload style="margin:.4rem 0 .8rem">
+        <label for="rb-aport" class="subtle">Si aporto</label>
+        <input id="rb-aport" type="number" step="10" min="0" name="aportacion" inputmode="decimal"
+               value="{{ "%g"|format(aportacion) if aportacion else '' }}" placeholder="0" style="max-width:8rem">
+        <span class="subtle">{{ base_currency }}</span>
+        <button type="submit" class="ghost small">Calcular</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="apilable">
+            <thead>
+                <tr>
+                    <th>ACTIVO</th>
+                    <th class="num">OBJETIVO</th>
+                    <th class="num">ACTUAL</th>
+                    <th class="num">DESVÍO</th>
+                    <th class="num">AJUSTE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in detalle.filas %}
+                <tr>
+                    <td data-col="Activo">
+                        {% if f.asset %}<span class="celda-activo">{{ avatar(f.asset, 24) }}<strong>{{ f.asset.name }}</strong></span>
+                        {% else %}<span class="subtle">Activo eliminado</span>{% endif %}
+                    </td>
+                    <td class="num" data-col="Objetivo">{{ "%g"|format(f.objetivo_pct) }}%</td>
+                    <td class="num" data-col="Actual">{{ "%g"|format(f.actual_pct) }}%</td>
+                    <td class="num {{ 'positive' if f.desviacion_pct >= 0 else 'negative' }}" data-col="Desvío">
+                        {{ "%+.1f"|format(f.desviacion_pct) }}%
+                    </td>
+                    <td class="num" data-col="Ajuste">
+                        {% if f.ajuste > 0.5 %}
+                        <strong class="positive">+{{ f.ajuste|dinero }}</strong>
+                        {% elif f.ajuste < -0.5 %}
+                        <strong class="negative">{{ f.ajuste|dinero }}</strong>
+                        {% else %}<span class="subtle">en objetivo</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p class="hint">
+        <strong>Ajuste</strong> en verde es lo que falta por comprar; en rojo, cuánto te has
+        pasado del objetivo.
+        {% if detalle.sin_objetivo > 0.5 %}
+        Hay {{ detalle.sin_objetivo|dinero }} {{ base_currency }} en activos sin objetivo asignado,
+        que cuentan para el total pero no salen en esta tabla.
+        {% endif %}
+        {% if detalle.objetivo_total > 100.5 %}
+        {{ icon("triangle-alert", 14) }} Tus objetivos suman más de 100%: revísalos o no serán alcanzables.
+        {% endif %}
+    </p>
+</section>
+{% endif %}
+
+{% if reparto %}
+<section class="card">
+    <h3>{{ icon("piggy-bank") }} Cómo repartir {{ aportacion|dinero }} {{ base_currency }}</h3>
+    <p class="hint">
+        Repartido entre los que van por debajo del objetivo, en proporción a lo que le falta a
+        cada uno. Los que ya lo sobrepasan se quedan fuera: meterles más agravaría la desviación.
+    </p>
+    <div class="table-wrap">
+        <table class="apilable">
+            <thead><tr><th>ACTIVO</th><th class="num">COMPRAR</th><th class="num">% DE LA APORTACIÓN</th></tr></thead>
+            <tbody>
+                {% for r in reparto %}
+                <tr>
+                    <td data-col="Activo">
+                        {% if r.asset %}<span class="celda-activo">{{ avatar(r.asset, 24) }}<strong>{{ r.asset.name }}</strong></span>{% endif %}
+                    </td>
+                    <td class="num" data-col="Comprar"><strong>{{ r.importe|dinero }} {{ base_currency }}</strong></td>
+                    <td class="num" data-col="% de la aportación">{{ "%g"|format(r.pct_de_la_aportacion) }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+{% if detalle.filas %}
+<section class="card">
+    <h3>{{ icon("tags") }} Objetivos fijados</h3>
+    <ul style="list-style:none; padding:0; margin:.4rem 0">
+        {% for f in detalle.filas %}
+        <li style="display:flex; align-items:center; gap:.6rem; padding:.3rem 0">
+            {% if f.asset %}{{ avatar(f.asset, 22) }}<span>{{ f.asset.name }}</span>{% endif %}
+            <strong>{{ "%g"|format(f.objetivo_pct) }}%</strong>
+            <span class="subtle" style="margin-left:auto">Vuelve a fijarlo arriba para cambiarlo</span>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% else %}
+<section class="card">
+    <div class="empty">{{ icon("scale", 30) }} Sin pesos objetivo
+        <span class="subtle">Fija el primero arriba para ver cuánto te separa de tu cartera ideal.</span>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}

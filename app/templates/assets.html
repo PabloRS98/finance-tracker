@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_avatar.html" import avatar %}
+{% block title %}Activos · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    <div class="card-title" style="justify-content:space-between">
+        <span>{{ icon("coins") }} Mis activos</span>
+        <span style="display:flex; align-items:center; gap:.6rem">
+            <a href="/activos/duplicados" class="ghost small" title="Buscar el mismo valor dado de alta dos veces">{{ icon("shuffle", 14) }} Duplicados</a>
+            {% if groups %}<span class="tag accent" data-money="{{ total_base }}" data-cur="{{ base_currency }}">{{ total_base|dinero }} {{ base_currency }}</span>{% endif %}
+        </span>
+    </div>
+    <details class="add-asset">
+        <summary>{{ icon("plus", 15) }} Añadir activo</summary>
+        <form method="post" action="/activos" class="form-grid" style="margin-top:.8rem">{{ csrf_input(request) }}
+            <div class="field">
+                <label for="a-name">Nombre</label>
+                <input id="a-name" type="text" name="name" placeholder="Cuenta ING, Apple, Bitcoin..." required>
+            </div>
+            <div class="field">
+                <label for="a-type">Tipo</label>
+                <select id="a-type" name="asset_type" required>
+                    <option value="cuenta_bancaria">Cuenta bancaria</option>
+                    <option value="accion_etf_fondo">Acción / ETF / Fondo</option>
+                    <option value="criptomoneda">Criptomoneda</option>
+                    <option value="inmueble_otro">Inmueble / Otro</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="a-currency">Moneda</label>
+                <select id="a-currency" name="currency">
+                    {% for c in currencies %}<option value="{{ c.value }}">{{ c.value }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="field" data-for="ticker">
+                <label for="a-ticker">Ticker / ID CoinGecko</label>
+                <input id="a-ticker" type="text" name="ticker" placeholder="AAPL, VWCE.DE, bitcoin...">
+            </div>
+            <div class="field" data-for="ticker">
+                <label for="a-qty">Cantidad</label>
+                <input id="a-qty" type="number" step="any" name="quantity" placeholder="0">
+            </div>
+            <div class="field" data-for="manual">
+                <label for="a-manual">Valor manual</label>
+                <input id="a-manual" type="number" step="0.01" name="manual_value" placeholder="0.00">
+            </div>
+            <button type="submit">{{ icon("plus", 15) }} Añadir</button>
+        </form>
+        <p class="hint" style="margin-top:.8rem">Para acciones/ETFs usa el ticker de Yahoo Finance (ej. AAPL, VWCE.DE). Para cripto, el ID de CoinGecko (ej. bitcoin, ethereum). Cuentas e inmuebles usan el valor manual.</p>
+    </details>
+</section>
+
+{% if groups %}
+{% for g in groups %}
+<section class="card">
+    <div class="card-title" style="justify-content:space-between">
+        <span>{{ icon(g.icon) }} {{ g.label }}</span>
+        <span class="tag" data-money="{{ g.subtotal }}" data-cur="{{ base_currency }}">{{ g.subtotal|dinero }} {{ base_currency }}</span>
+    </div>
+    <div class="holdings">
+        {% for r in g.rows %}{% set a = r.asset %}{% set s = r.summary %}
+        <div class="holding">
+            <a class="holding-main" href="/activos/{{ a.id }}">
+                {{ avatar(a, 30) }}
+                <span class="holding-name">
+                    <strong>{{ a.name }}</strong>
+                    {% if a.ticker %}<span class="subtle">{{ a.ticker }}</span>
+                    {% elif a.isin %}<span class="subtle">{{ a.isin }}</span>{% endif %}
+                </span>
+                {% if s %}
+                <span class="holding-metric">
+                    <span class="lbl">Cantidad</span>
+                    <span class="val">{{ "%g"|format(s.quantity) if s.quantity is not none else "-" }}</span>
+                </span>
+                <span class="holding-metric">
+                    <span class="lbl">Precio</span>
+                    <span class="val">{% if a.current_price is not none %}<span data-money="{{ a.current_price }}" data-cur="{{ a.currency.value }}">{{ a.current_price|dinero }} <small class="subtle">{{ a.currency.value }}</small></span>{% else %}-{% endif %}</span>
+                </span>
+                <span class="holding-metric">
+                    <span class="lbl">P&amp;L</span>
+                    {% if s.pnl_pct is not none %}
+                    <span class="val {{ 'positive' if s.pnl_pct >= 0 else 'negative' }}">{{ "%+.1f"|format(s.pnl_pct) }}%</span>
+                    {% elif s.position.has_operations and s.quantity and s.quantity > 0 %}
+                    <span class="val subtle" title="Valorado a coste: sin precio de mercado">a coste</span>
+                    {% else %}<span class="val subtle">—</span>{% endif %}
+                </span>
+                <span class="holding-metric">
+                    <span class="lbl">Divisa</span>
+                    {% if s.fx_effect_pct is not none %}
+                    <span class="val {{ 'positive' if s.fx_effect_pct >= 0 else 'negative' }}" title="Efecto del tipo de cambio, aparte del P&L de precio">{{ "%+.1f"|format(s.fx_effect_pct) }}%</span>
+                    {% elif a.currency.value == base_currency %}
+                    <span class="val subtle" title="Activo en {{ base_currency }}: sin efecto divisa">—</span>
+                    {% else %}
+                    <span class="val subtle" title="Sin datos suficientes para calcular el efecto divisa">—</span>
+                    {% endif %}
+                </span>
+                {% endif %}
+                <span class="holding-value">
+                    <span class="lbl">Valor</span>
+                    <strong data-money="{{ r.value_base }}" data-cur="{{ base_currency }}">{{ r.value_base|dinero }} <small class="subtle">{{ base_currency }}</small></strong>
+                </span>
+                <span class="holding-chevron">{{ icon("chevron-right", 16) }}</span>
+            </a>
+            <div class="holding-actions">
+                {% if a.asset_type.value in ("accion_etf_fondo", "criptomoneda") %}
+                <form method="post" action="/activos/{{ a.id }}/actualizar-precio">{{ csrf_input(request) }}
+                    <button type="submit" class="ghost small icon-btn" title="Actualizar precio">{{ icon("refresh-cw", 14) }}</button>
+                </form>
+                {% endif %}
+                <button type="button" class="ghost small icon-btn" data-open-dialog="#dlg-asset-{{ a.id }}" title="Editar">{{ icon("pencil", 14) }}</button>
+                <form method="post" action="/activos/{{ a.id }}/eliminar" data-confirm="¿Eliminar el activo &quot;{{ a.name }}&quot;?">{{ csrf_input(request) }}
+                    <button type="submit" class="danger small icon-btn" title="Eliminar">{{ icon("trash-2", 14) }}</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endfor %}
+{% else %}
+<section class="card">
+    <div class="empty">{{ icon("inbox", 30) }} Aún no tienes activos
+        <div class="empty-acciones">
+            <button type="button" class="primary" onclick="document.querySelector('.add-asset').open = true; document.querySelector('.add-asset').scrollIntoView({block:'center'})">{{ icon("plus", 14) }} Añadir activo</button>
+            <a class="btn ghost" href="/operaciones/importar">{{ icon("upload", 14) }} Importar CSV</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% for g in groups %}{% for r in g.rows %}{% set a = r.asset %}
+<dialog id="dlg-asset-{{ a.id }}">
+    <h3>{{ icon("pencil") }} Editar activo</h3>
+    <form method="post" action="/activos/{{ a.id }}/editar" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label>Nombre</label>
+            <input type="text" name="name" value="{{ a.name }}" required>
+        </div>
+        <div class="field">
+            <label>Tipo</label>
+            <select name="asset_type">
+                <option value="cuenta_bancaria" {% if a.asset_type.value == "cuenta_bancaria" %}selected{% endif %}>Cuenta bancaria</option>
+                <option value="accion_etf_fondo" {% if a.asset_type.value == "accion_etf_fondo" %}selected{% endif %}>Acción / ETF / Fondo</option>
+                <option value="criptomoneda" {% if a.asset_type.value == "criptomoneda" %}selected{% endif %}>Criptomoneda</option>
+                <option value="inmueble_otro" {% if a.asset_type.value == "inmueble_otro" %}selected{% endif %}>Inmueble / Otro</option>
+            </select>
+        </div>
+        <div class="field">
+            <label>Moneda</label>
+            <select name="currency">
+                {% for c in currencies %}<option value="{{ c.value }}" {% if a.currency == c %}selected{% endif %}>{{ c.value }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Ticker / ID CoinGecko</label>
+            <input type="text" name="ticker" value="{{ a.ticker or '' }}">
+        </div>
+        <div class="field">
+            <label>Cantidad</label>
+            <input type="number" step="any" name="quantity" value="{{ a.quantity if a.quantity is not none else '' }}">
+        </div>
+        <div class="field">
+            <label>Valor manual</label>
+            <input type="number" step="0.01" name="manual_value" value="{{ a.manual_value if a.manual_value is not none else '' }}">
+        </div>
+        <div class="field">
+            <label>Región</label>
+            <input type="text" name="region" value="{{ a.region or '' }}" list="regiones" placeholder="Global, EE. UU., Europa...">
+        </div>
+        <div class="field">
+            <label>Sector</label>
+            <input type="text" name="sector" value="{{ a.sector or '' }}" list="sectores" placeholder="Tecnología, Diversificado...">
+        </div>
+        <div class="dialog-actions full">
+            <button type="button" class="ghost" data-close-dialog>Cancelar</button>
+            <button type="submit">{{ icon("check", 15) }} Guardar</button>
+        </div>
+    </form>
+</dialog>
+{% endfor %}{% endfor %}
+
+{% if cerradas %}
+{# Vendidas enteras: valen 0 y no suman a ningún subtotal, así que estorbaban en
+   medio de la cartera viva. Se conservan con su historial y su P&L realizado,
+   solo que plegadas. #}
+<details class="card collapsible">
+    <summary>{{ icon("archive") }} Posiciones cerradas <span class="tag">{{ cerradas|length }}</span></summary>
+    <p class="hint">
+        Activos que vendiste enteros. Quedan fuera de los totales porque ya no valen nada, pero se
+        guardan con todas sus operaciones: son las que sostienen tu rentabilidad histórica.
+    </p>
+    <div class="table-wrap">
+        <table class="apilable">
+            <thead>
+                <tr>
+                    <th>ACTIVO</th>
+                    <th class="num">P&amp;L REALIZADO</th>
+                    <th class="num">ÚLTIMA OPERACIÓN</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in cerradas %}{% set a = r.asset %}
+                <tr>
+                    <td data-col="Activo">
+                        <a href="/activos/{{ a.id }}" class="celda-activo">
+                            {{ avatar(a, 24) }}
+                            <strong>{{ a.name }}</strong>
+                            {% if a.ticker %}<span class="subtle">{{ a.ticker }}</span>{% endif %}
+                        </a>
+                    </td>
+                    <td class="num" data-col="P&amp;L realizado">
+                        {% if r.summary.realized is not none %}
+                        <strong class="{{ 'positive' if r.summary.realized >= 0 else 'negative' }}"
+                                data-money="{{ r.summary.realized }}" data-cur="{{ a.currency.value }}">
+                            {{ r.summary.realized|dinero }} <small class="subtle">{{ a.currency.value }}</small>
+                        </strong>
+                        {% else %}<span class="subtle">—</span>{% endif %}
+                    </td>
+                    <td class="num" data-col="Última operación">
+                        <span class="subtle">{{ r.cerrada_el.strftime("%d/%m/%Y") if r.cerrada_el else "—" }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</details>
+{% endif %}
+
+<section class="card">
+    <h3>{{ icon("eye") }} En seguimiento
+        {% if seguidos %}<span class="tag">{{ seguidos|length }}</span>{% endif %}
+    </h3>
+    <p class="hint">Valores que vigilas sin tenerlos. Sin posición no hay P&amp;L: solo precio y variación del día.</p>
+
+    {% if seguidos %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>VALOR</th>
+                    <th style="text-align:right">PRECIO</th>
+                    <th style="text-align:right">DÍA</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in seguidos %}
+                {% set var = s.day_change_pct() %}
+                <tr>
+                    <td><strong>{{ s.name }}</strong> <code class="subtle">{{ s.ticker }}</code></td>
+                    <td style="text-align:right">
+                        {% if s.current_price is not none %}{{ s.current_price|dinero }} <small class="subtle">{{ s.currency.value }}</small>
+                        {% else %}<span class="subtle">sin precio</span>{% endif %}
+                    </td>
+                    <td style="text-align:right" class="{{ 'positive' if (var or 0) >= 0 else 'negative' }}">
+                        {% if var is not none %}{{ "%+.2f"|format(var) }}%{% else %}—{% endif %}
+                    </td>
+                    <td style="text-align:right; white-space:nowrap">
+                        <form method="post" action="/activos/seguimiento/{{ s.id }}/comprar" style="display:inline">{{ csrf_input(request) }}
+                            <button type="submit" class="ghost small" title="Pasar a cartera y registrar la compra">A cartera</button>
+                        </form>
+                        <form method="post" action="/activos/seguimiento/{{ s.id }}/eliminar" style="display:inline"
+                              data-confirm="¿Dejar de seguir {{ s.name }}?">{{ csrf_input(request) }}
+                            <button type="submit" class="ghost icon-btn" title="Dejar de seguir">{{ icon("trash-2", 15) }}</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <form method="post" action="/activos/seguimiento" style="display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.6rem">{{ csrf_input(request) }}
+        <input name="ticker" placeholder="Ticker (NVDA, VWCE.DE) o id de cripto (solana)" required style="flex:1 1 16rem">
+        <select name="asset_type">
+            <option value="accion_etf_fondo">Acción / ETF</option>
+            <option value="criptomoneda">Cripto</option>
+        </select>
+        <button type="submit" class="primary">Seguir</button>
+    </form>
+</section>
+
+<datalist id="regiones">
+    <option value="Global"></option><option value="EE. UU."></option><option value="Europa"></option>
+    <option value="Emergentes"></option><option value="Asia"></option><option value="Japón"></option>
+    <option value="China"></option>
+</datalist>
+<datalist id="sectores">
+    <option value="Diversificado"></option><option value="Tecnología"></option><option value="Salud"></option>
+    <option value="Finanzas"></option><option value="Energía"></option><option value="Consumo"></option>
+    <option value="Industria"></option><option value="Inmobiliario"></option><option value="Cripto"></option>
+</datalist>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// Muestra solo los campos que aplican al tipo de activo elegido en el alta
+document.addEventListener("DOMContentLoaded", () => {
+    const typeSel = document.getElementById("a-type");
+    if (!typeSel) return;
+    const toggle = () => {
+        const isMarket = ["accion_etf_fondo", "criptomoneda"].includes(typeSel.value);
+        document.querySelectorAll('[data-for="ticker"]').forEach(el => el.style.display = isMarket ? "" : "none");
+        document.querySelectorAll('[data-for="manual"]').forEach(el => el.style.display = isMarket ? "none" : "");
+    };
+    typeSel.addEventListener("change", toggle);
+    toggle();
+
+    // Autocompletado de ticker: Yahoo para acciones/ETFs, CoinGecko para cripto.
+    // Al elegir un resultado se rellena el ticker y, si está vacío, el nombre.
+    const tickerInput = document.getElementById("a-ticker");
+    const nameInput = document.getElementById("a-name");
+    let acBox = null, acTimer = null;
+    const closeAc = () => { if (acBox) { acBox.remove(); acBox = null; } };
+
+    tickerInput.addEventListener("input", () => {
+        clearTimeout(acTimer);
+        const q = tickerInput.value.trim();
+        if (q.length < 2) { closeAc(); return; }
+        acTimer = setTimeout(async () => {
+            let items = [];
+            try {
+                const res = await fetch(`/activos/buscar?q=${encodeURIComponent(q)}&tipo=${typeSel.value}`);
+                items = await res.json();
+            } catch { return; }
+            closeAc();
+            if (!items.length || document.activeElement !== tickerInput) return;
+            acBox = document.createElement("div");
+            acBox.className = "ac-list";
+            for (const it of items) {
+                const row = document.createElement("button");
+                row.type = "button";
+                row.className = "ac-item";
+                const sym = document.createElement("strong");
+                sym.textContent = it.value;
+                const nm = document.createElement("span");
+                nm.textContent = it.name;
+                row.append(sym, nm);
+                if (it.extra) {
+                    const ex = document.createElement("small");
+                    ex.textContent = it.extra;
+                    row.append(ex);
+                }
+                row.addEventListener("click", () => {
+                    tickerInput.value = it.value;
+                    if (!nameInput.value.trim()) nameInput.value = it.name;
+                    closeAc();
+                });
+                acBox.appendChild(row);
+            }
+            tickerInput.closest(".field").appendChild(acBox);
+        }, 300);
+    });
+    document.addEventListener("click", e => {
+        if (acBox && !acBox.contains(e.target) && e.target !== tickerInput) closeAc();
+    });
+    tickerInput.addEventListener("keydown", e => { if (e.key === "Escape") closeAc(); });
+});
+</script>
+{% endblock %}

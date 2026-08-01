@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Categorías · Patrimonio{% endblock %}
+{% block content %}
+
+<section class="card">
+    <h3>{{ icon("plus") }} Nueva categoría</h3>
+    <form method="post" action="/categorias" class="form-grid">{{ csrf_input(request) }}
+        <div class="field">
+            <label for="c-name">Nombre</label>
+            <input id="c-name" type="text" name="name" placeholder="Comida, Ocio..." required>
+        </div>
+        <div class="field">
+            <label for="c-kw">Palabras clave (auto-categorizar)</label>
+            <input id="c-kw" type="text" name="keywords" placeholder="mercadona, supermercado...">
+        </div>
+        {% if budgets_enabled %}
+        <div class="field">
+            <label for="c-budget">Límite mensual (opcional)</label>
+            <input id="c-budget" type="number" step="0.01" name="budget_limit" placeholder="Sin límite">
+        </div>
+        {% endif %}
+        <button type="submit">{{ icon("plus", 15) }} Añadir</button>
+    </form>
+    <p class="hint" style="margin-top:.7rem">Las palabras clave (separadas por coma) se usan para asignar categoría automáticamente al importar CSV o dictar por voz.</p>
+</section>
+
+<section class="card">
+    <h3>{{ icon("tags") }} Categorías existentes</h3>
+    {% if categories %}
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th><th>Palabras clave</th>
+                {% if budgets_enabled %}<th>Límite mensual</th>{% endif %}
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for c in categories %}
+        <tr>
+            <form method="post" action="/categorias/{{ c.id }}/editar" style="display: contents">{{ csrf_input(request) }}
+            <td><input type="text" name="name" value="{{ c.name }}" aria-label="Nombre"></td>
+            <td><input type="text" name="keywords" value="{{ c.keywords }}" aria-label="Palabras clave"></td>
+            {% if budgets_enabled %}
+            <td><input type="number" step="0.01" name="budget_limit" value="{{ c.budget_limit if c.budget_limit is not none else '' }}" placeholder="Sin límite" aria-label="Límite"></td>
+            {% endif %}
+            <td>
+                <span class="actions">
+                    <button type="submit" class="ghost small" title="Guardar">{{ icon("check", 14) }} Guardar</button>
+                    <button type="submit" formaction="/categorias/{{ c.id }}/eliminar" formnovalidate class="danger small icon-btn"
+                            data-confirm="¿Eliminar la categoría &quot;{{ c.name }}&quot;?" title="Eliminar">{{ icon("trash-2", 14) }}</button>
+                </span>
+            </td>
+            </form>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty">{{ icon("tags", 30) }} Sin categorías
+        <div class="empty-acciones">
+            <button type="button" class="primary" onclick="document.querySelector('.form-grid').scrollIntoView({block:'center'})">{{ icon("plus", 14) }} Crear categoría</button>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}
