@@ -1,11 +1,14 @@
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-sqlalchemy==2.0.35
-alembic==1.13.3
-pydantic-settings==2.5.2
-jinja2==3.1.4
-python-multipart==0.0.12
-apscheduler==3.10.4
-httpx==0.27.2
+fastapi==0.141.1
+uvicorn[standard]==0.52.0
+sqlalchemy==2.0.51
+alembic==1.18.5
+pydantic-settings==2.14.2
+jinja2==3.1.6
+python-multipart==0.0.32
+apscheduler==3.11.3
+httpx==0.28.1
+# Estos dos se quedan donde estaban: no tienen vulnerabilidades conocidas, pesan
+# mucho y quedan fuera del CI de tests, así que subirlos a ciegas no lo cubriría
+# nadie. Que los proponga Dependabot en un PR aparte, revisable por separado.
 faster-whisper==1.1.1
 pymupdf==1.24.10
