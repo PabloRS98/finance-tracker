@@ -87,8 +87,16 @@
     <details class="card collapsible" data-key="heatmap" open>
         <summary>{{ icon("chart-column") }} Mapa de la cartera</summary>
         {% if heatmap %}
-        <div id="heatmap" class="heatmap" data-items='{{ heatmap | tojson }}'></div>
-        <p class="hint">Superficie = peso en la cartera invertida · color = variación del día.</p>
+        {# En 260px de alto solo caben los rótulos de las piezas grandes. El mapa
+           entero abre en un diálogo donde sí cabe todo, con nombre completo,
+           peso y variación. #}
+        <div id="heatmap" class="heatmap" data-items='{{ heatmap | tojson }}'
+             data-open-dialog="#dlg-mapa" role="button" tabindex="0"
+             aria-label="Ver el mapa de la cartera en grande"></div>
+        <p class="hint">
+            Superficie = peso en la cartera invertida · color = variación del día.
+            <button type="button" class="ghost small" data-open-dialog="#dlg-mapa">{{ icon("search", 13) }} Ver en grande</button>
+        </p>
         {% else %}
         <div class="empty">{{ icon("inbox", 28) }} Sin posiciones que mapear
             <div class="empty-acciones"><a class="btn ghost" href="/operaciones">{{ icon("plus", 14) }} Registrar operación</a></div>
@@ -180,6 +188,27 @@
         <span class="hint">Copia automática diaria a las 04:45 en el volumen (/data/backups, se conservan {{ backup_keep }}).</span>
     </div>
 </details>
+
+{% if heatmap %}
+{# El mapa a tamaño completo. Comparte los datos con el pequeño a través del
+   mismo atributo, así que no hay una segunda consulta ni una segunda verdad. #}
+<dialog id="dlg-mapa" class="dlg-ancho">
+    <h3>{{ icon("chart-column") }} Mapa de la cartera</h3>
+    <div id="heatmap-grande" class="heatmap heatmap-grande"
+         data-items='{{ heatmap | tojson }}' data-detallado="1"></div>
+    {# Una astilla del 0,3% no admite rótulo por mucho que se amplíe, así que la
+       lista recoge todas las posiciones con su peso. Es además la alternativa
+       en texto de un gráfico que, por definición, es visual. #}
+    <ul id="heatmap-leyenda" class="heatmap-leyenda"></ul>
+    <p class="hint">
+        Superficie = peso en la cartera invertida · color = variación del día.
+        Toca una pieza para abrir su ficha.
+    </p>
+    <div class="dialog-actions">
+        <button type="button" class="ghost" data-close-dialog>Cerrar</button>
+    </div>
+</dialog>
+{% endif %}
 
 {% endblock %}
 {% block scripts %}

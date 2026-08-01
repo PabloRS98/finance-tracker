@@ -75,6 +75,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     heatmap = sorted(
         (
             {
+                # El id va para que cada pieza del mapa ampliado enlace a su
+                # ficha: mirar el mapa y querer abrir lo que se está mirando es
+                # el gesto siguiente.
+                "id": r["asset"].id,
                 "nombre": r["asset"].name,
                 "ticker": r["asset"].ticker or "",
                 "valor": round(r["value_base"], 2),
