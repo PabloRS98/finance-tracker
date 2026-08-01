@@ -79,10 +79,14 @@ jobs:
           ./.github/comprobar-rutas.sh 8003
 
       - name: La app no corre como root
+        # Se mira el dueño del PID 1, que es uvicorn: el entrypoint arranca como
+        # root solo para ajustar /data y luego hace exec con setpriv. No vale
+        # `docker exec ... id -un`, que abre un proceso nuevo con el usuario por
+        # defecto de la imagen (root) y diría que sí aunque la app estuviera bien.
         run: |
-          usuario=$(docker exec ft-root id -un)
-          test "$usuario" = "finance" || { echo "corre como $usuario"; exit 1; }
-          echo "corre como $usuario"
+          uid=$(docker exec ft-root stat -c %u /proc/1)
+          test "$uid" = "1000" || { echo "uvicorn corre con uid $uid, se esperaba 1000"; exit 1; }
+          echo "uvicorn corre con uid $uid (finance)"
 
       # ---------- El healthcheck avisa cuando se rompe ----------
 
