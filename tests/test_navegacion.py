@@ -49,3 +49,38 @@ def test_el_dialogo_de_mas_sale_en_todas_las_paginas(client):
     """Va en base.html: la navegación tiene que funcionar desde donde estés."""
     for ruta in PRIMARIAS + SECUNDARIAS:
         assert 'id="dlg-mas"' in client.get(ruta).text, ruta
+
+
+# ---------- La barra superior cabe ----------
+# .topbar es un flex sin wrap: con las siete etiquetas necesita 1.232px, y por
+# debajo de eso los botones de la derecha se salían y hacían que toda la página
+# tuviera scroll horizontal. Entre 721px y 1.279px se dejan solo los iconos.
+
+def test_los_enlaces_llevan_titulo_para_cuando_solo_se_ven_los_iconos(client):
+    """Sin etiqueta a la vista, el título es lo único que dice a dónde lleva."""
+    html = client.get("/").text
+
+    for ruta, titulo in [("/", "Dashboard"), ("/activos", "Activos"),
+                         ("/operaciones", "Operaciones"), ("/transacciones", "Movimientos"),
+                         ("/analisis", "Análisis"), ("/recurrentes", "Recurrentes"),
+                         ("/categorias", "Categorías")]:
+        assert 'href="%s"' % ruta in html and 'title="%s"' % titulo in html, ruta
+
+
+def _css() -> str:
+    from pathlib import Path
+
+    return Path("app/static/css/style.css").read_text(encoding="utf-8")
+
+
+def test_existe_la_banda_de_solo_iconos():
+    assert "(min-width: 721px) and (max-width: 1279px)" in _css()
+
+
+def test_las_etiquetas_se_ocultan_sin_sacarlas_del_arbol_de_accesibilidad():
+    """Con `display: none` un lector de pantalla anunciaría siete enlaces sin
+    nombre. Se ocultan recortándolas, que las deja anunciables."""
+    banda = _css().split("(min-width: 721px) and (max-width: 1279px)")[1].split("}\n}")[0]
+
+    assert "clip-path" in banda
+    assert "display: none" not in banda

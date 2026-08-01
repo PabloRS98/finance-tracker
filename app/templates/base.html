@@ -35,17 +35,17 @@
    siete, que es donde sí hay sitio. #}
 {% set en_secundaria = path.startswith('/analisis') or path.startswith('/recurrentes') or path.startswith('/categorias') %}
     <nav class="nav-links">
-        <a href="/" class="{{ 'active' if path == '/' else '' }}">{{ icon("layout-dashboard") }}<span>Dashboard</span></a>
-        <a href="/activos" class="{{ 'active' if path.startswith('/activos') else '' }}">{{ icon("coins") }}<span>Activos</span></a>
-        <a href="/operaciones" class="{{ 'active' if path.startswith('/operaciones') else '' }}">{{ icon("briefcase") }}<span>Operaciones</span></a>
-        <a href="/transacciones" class="{{ 'active' if path.startswith('/transacciones') else '' }}">{{ icon("arrow-left-right") }}<span>Movimientos</span></a>
-        <a href="/analisis" data-secundaria class="{{ 'active' if path.startswith('/analisis') else '' }}">{{ icon("chart-pie") }}<span>Análisis</span></a>
-        <a href="/recurrentes" data-secundaria class="{{ 'active' if path.startswith('/recurrentes') else '' }}">{{ icon("repeat") }}<span>Recurrentes</span></a>
-        <a href="/categorias" data-secundaria class="{{ 'active' if path.startswith('/categorias') else '' }}">{{ icon("tags") }}<span>Categorías</span></a>
+        <a href="/" title="Dashboard" class="{{ 'active' if path == '/' else '' }}">{{ icon("layout-dashboard") }}<span>Dashboard</span></a>
+        <a href="/activos" title="Activos" class="{{ 'active' if path.startswith('/activos') else '' }}">{{ icon("coins") }}<span>Activos</span></a>
+        <a href="/operaciones" title="Operaciones" class="{{ 'active' if path.startswith('/operaciones') else '' }}">{{ icon("briefcase") }}<span>Operaciones</span></a>
+        <a href="/transacciones" title="Movimientos" class="{{ 'active' if path.startswith('/transacciones') else '' }}">{{ icon("arrow-left-right") }}<span>Movimientos</span></a>
+        <a href="/analisis" data-secundaria title="Análisis" class="{{ 'active' if path.startswith('/analisis') else '' }}">{{ icon("chart-pie") }}<span>Análisis</span></a>
+        <a href="/recurrentes" data-secundaria title="Recurrentes" class="{{ 'active' if path.startswith('/recurrentes') else '' }}">{{ icon("repeat") }}<span>Recurrentes</span></a>
+        <a href="/categorias" data-secundaria title="Categorías" class="{{ 'active' if path.startswith('/categorias') else '' }}">{{ icon("tags") }}<span>Categorías</span></a>
         {# El botón queda marcado si la página actual es una de las de dentro:
            si no, en esas pantallas la barra no señalaría nada. #}
         <button type="button" class="nav-mas {{ 'active' if en_secundaria else '' }}"
-                data-open-dialog="#dlg-mas" aria-label="Más secciones">
+                data-open-dialog="#dlg-mas" title="Más secciones" aria-label="Más secciones">
             {{ icon("list-todo") }}<span>Más</span>
         </button>
     </nav>
