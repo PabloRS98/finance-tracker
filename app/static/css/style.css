@@ -1,10 +1,9 @@
 /* ============================================================
-   Home Apps Suite — sistema visual compartido (tema oscuro)
-   Archivo idéntico en las 3 apps salvo el bloque de acento.
+   Sistema visual de finance-tracker (tema oscuro)
    Sin frameworks: tokens CSS + componentes propios.
    ============================================================ */
 
-/* ---------- Acento de esta app ---------- */
+/* ---------- Acento ---------- */
 :root {
     --accent: #4f8ef7;
     --accent-soft: #7db0ff;
@@ -12,21 +11,35 @@
 
 /* ---------- Tokens ---------- */
 :root {
-    --bg: #0b0d12;
-    --bg-soft: #10131a;
-    --card: #141823;
-    --card-2: #1a1f2d;
-    --border: #232a38;
-    --border-2: #303a4d;
+    /* Superficies. El salto entre fondo y tarjeta era de 1,10 de contraste:
+       sobre el papel había tarjetas, en pantalla la página era una mancha
+       oscura uniforme. Se separan lo justo para que se lean como planos
+       distintos sin que parezcan cajas grises pegadas encima. */
+    --bg: #080a0f;
+    --bg-soft: #0e1118;
+    --card: #1e2534;        /* plano 1: la mayoría de tarjetas */
+    --card-alto: #262e41;   /* plano 2: hero y diálogos */
+    --card-2: #2a3346;      /* hover y anidados */
+    --border: #37425a;
+    --border-2: #4a5670;
     --text: #e9ecf2;
-    --text-2: #a9b1c0;
-    --text-3: #707a8c;
+    --text-2: #b4bccb;
+    /* Sube un punto respecto al gris anterior: al aclarar la tarjeta, el
+       apagado de antes se quedaba por debajo del contraste legible. */
+    --text-3: #808b9f;
     --positive: #3ecf8e;
     --negative: #f26d6d;
     --warning: #f5b95f;
     --r: 12px;
     --r-sm: 8px;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 10px 28px -14px rgba(0, 0, 0, .55);
+
+    /* Dos elevaciones en vez de una sola sombra para todo. La luz de borde es
+       lo que más hace: una línea clara de 1px arriba imita el canto iluminado
+       de una superficie y da volumen sin subir el brillo del relleno. */
+    --sombra-1: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 16px -8px rgba(0, 0, 0, .55);
+    --sombra-2: 0 2px 6px rgba(0, 0, 0, .45), 0 22px 48px -20px rgba(0, 0, 0, .75);
+    --luz-borde: inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent);
+
     --font: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -126,7 +139,7 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
     border: 1px solid var(--border);
     border-radius: var(--r);
     padding: 1.15rem 1.3rem;
-    box-shadow: var(--shadow);
+    box-shadow: var(--sombra-1), var(--luz-borde);
 }
 
 .card > h3, .card-title {
@@ -346,7 +359,7 @@ button.ghost.is-loading::after, button.danger.is-loading::after {
     padding: .6rem .95rem;
     border-radius: 10px;
     font-size: .87rem;
-    box-shadow: var(--shadow);
+    box-shadow: var(--sombra-2);
     animation: toast-in .22s ease-out;
     max-width: 100%;
     cursor: pointer;
@@ -364,13 +377,16 @@ button.ghost.is-loading::after, button.danger.is-loading::after {
 
 /* ---------- Diálogos (editar) ---------- */
 dialog {
-    background: var(--card);
+    /* Flota sobre el contenido, así que va en el plano elevado: con el mismo
+       fondo que las tarjetas de debajo no se distinguía del fondo salvo por
+       la sombra. */
+    background: var(--card-alto);
     color: var(--text);
     border: 1px solid var(--border-2);
     border-radius: var(--r);
     padding: 1.3rem 1.4rem;
     width: min(94vw, 560px);
-    box-shadow: 0 24px 60px -12px rgba(0, 0, 0, .7);
+    box-shadow: var(--sombra-2), var(--luz-borde);
 }
 dialog::backdrop { background: rgba(5, 7, 10, .62); backdrop-filter: blur(3px); }
 dialog h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; margin-bottom: 1rem; }
@@ -470,7 +486,19 @@ canvas { max-width: 100%; }
 /* ---------- Dashboard: hero + secciones plegables ---------- */
 .hero-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
 .hero-side { display: grid; gap: 1rem; }
-.hero-card { justify-content: flex-start; }
+/* El patrimonio es la respuesta a la pregunta con la que se entra, y hasta
+   ahora recibía la misma caja que "Gastos por categoría". Sube al plano
+   elevado y se le tiñe el borde y una esquina con el acento: es lo único de
+   la página con ese tratamiento, así que la mirada aterriza ahí sola. */
+.hero-card {
+    justify-content: flex-start;
+    background:
+        radial-gradient(120% 150% at 0% 0%,
+            color-mix(in srgb, var(--accent) 11%, transparent), transparent 62%),
+        var(--card-alto);
+    border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+    box-shadow: var(--sombra-2), var(--luz-borde);
+}
 .hero-card .hero-number { font-size: 2.3rem; }
 .spark-box { position: relative; height: 58px; margin-top: auto; }
 
