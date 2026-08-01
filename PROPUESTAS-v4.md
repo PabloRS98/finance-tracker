@@ -7,8 +7,8 @@ de cada sección muestra lo esencial; el detalle vive un clic más adentro.
 
 > Este documento era una lista de propuestas. Se ha reescrito como **estado real**:
 > buena parte ya está implementada y mantenerlo como lista de deseos hacía que se
-> propusiera dos veces lo mismo. Lo hecho se marca con su PR; el detalle del
-> porqué de cada cambio está en [CHANGELOG.md](CHANGELOG.md).
+> propusiera dos veces lo mismo. El detalle del porqué de cada cambio está en
+> [CHANGELOG.md](CHANGELOG.md); aquí solo se marca qué queda y qué no.
 
 > Excluido por decisión del usuario (no re-proponer): tracking de dividendos,
 > calculadora FIRE/proyecciones, regla de fondo de emergencia, divisas más allá
@@ -27,22 +27,19 @@ de cada sección muestra lo esencial; el detalle vive un clic más adentro.
 | 1.3 | Comisiones acumuladas (total e histórico por año) | ya estaba |
 | 1.4 | Backup automático de la BD + descarga | ya estaba |
 | 1.6 | CAGR / rentabilidad anualizada | ya estaba |
-| 1.5 | Benchmark personalizable desde la interfaz | PR #8 |
-| 1.7 | Aportado vs. revalorización en la gráfica | PR #7 |
-| 1.8 | MWR / XIRR de la cartera | PR #7 |
-| 1.9 | Fusión de duplicados + posiciones por cuenta | PR #11 |
-| 1.11 | Watchlist | PR #9 |
-| 1.12 | Heatmap de cartera | PR #10 |
-| 1.13 | Rendimiento por año vs. índice | PR #7 |
+| 1.5 | Benchmark personalizable desde la interfaz | hecho |
+| 1.7 | Aportado vs. revalorización en la gráfica | hecho |
+| 1.8 | MWR / XIRR de la cartera | hecho |
+| 1.9 | Fusión de duplicados + posiciones por cuenta | hecho |
+| 1.11 | Watchlist | hecho |
+| 1.12 | Heatmap de cartera | hecho |
+| 1.13 | Rendimiento por año vs. índice | hecho |
+| 1.10 | Alertas de precio por Telegram | hecho |
+| 1.14 | Rebalanceo | hecho |
 
 ### Pendiente
 
-Nada del roadmap. Las dos que quedaban se cerraron:
-
-| # | Propuesta | PR |
-|---|-----------|-----|
-| 1.10 | Alertas de precio por Telegram | #20 |
-| 1.14 | Rebalanceo | #25 |
+Nada del roadmap.
 
 **1.15 (carpeta vigilada), 1.16 (más importadores) y 1.17 (modo demo)** siguen
 sin hacer, pero por decisión y no por olvido: resuelven problemas que todavía no
@@ -65,17 +62,15 @@ pliega.
 - **2.5 Análisis**: es la sección técnica y ahí se ha añadido, no simplificado —
   allocations, comisiones, X-Ray, TWR/XIRR/CAGR y rendimiento por año.
 
+- **2.2** Marcas de compra/venta sobre la curva de precio.
+- **2.3** Avatares de color por activo.
+- **2.4** Alta plegada, filtros por chips y separadores de mes.
+- **2.6** Estados vacíos con acción y escala en tokens.
+- **2.7** Móvil: FAB, barra 4+Más, tarjetas, tirar para actualizar, PWA.
+
 ### Pendiente
 
-Nada. El paquete de diseño se cerró entre los PR #15 y #24:
-
-| # | Propuesta | PR |
-|---|-----------|-----|
-| 2.2 | Marcas de compra/venta sobre la curva de precio | #21 |
-| 2.3 | Avatares de color por activo | #22 |
-| 2.4 | Alta plegada, filtros por chips y separadores de mes | #23 |
-| 2.6 | Estados vacíos con acción y escala en tokens | #24 |
-| 2.7 | Móvil: FAB, barra 4+Más, tarjetas, tirar para actualizar, PWA | #15–#19 |
+Nada. El paquete de diseño está cerrado.
 
 Tres cosas se hicieron distinto de lo propuesto, con su motivo:
 
@@ -91,7 +86,22 @@ Tres cosas se hicieron distinto de lo propuesto, con su motivo:
   nada.
 
 
-## 3 · Deuda técnica conocida
+## 3 · Robustez
+
+Lo que se hizo después de cerrar el roadmap, y por qué. Los dos incidentes
+graves del proyecto no estaban en el código sino en el camino de despliegue, así
+que esta parte va sobre eso.
+
+- **El CI construye la imagen y la levanta** contra un volumen vacío, contra una
+  base anterior a Alembic y contra un `/data` en manos de root. En los tres
+  exige contenedor sano, las once rutas en 200 y la app sin privilegios.
+- **El healthcheck consulta la base.** Antes devolvía `ok` sin tocarla, así que
+  Docker daba por sano un contenedor que fallaba en todas las páginas.
+- **404 y 500 tienen página propia**, autocontenida, para que un fallo de base
+  de datos no se lleve por delante también la página que lo anuncia.
+
+
+## 4 · Deuda técnica conocida
 
 Cosas que salieron en la auditoría y se decidió **no** arreglar, con el motivo.
 Están aquí para no volver a proponerlas sin contexto.
@@ -118,16 +128,16 @@ ponerla tras un proxy con TLS o VPN. Está avisado en el README.
 
 ---
 
-## 4 · Qué queda
+## 5 · Qué queda
 
 El roadmap de la v4 está cerrado. Sigue vivo lo que se marcó arriba como
 pendiente por decisión (1.15, 1.16, 1.17) y la deuda técnica de la sección
 anterior, que se dejó a propósito.
 
-Fuera del roadmap queda una decisión tuya, no técnica:
+Fuera del roadmap queda una decisión del dueño del repositorio, no técnica:
 
-- **`.env.enc` sigue sin versionar** porque contiene secretos de las tres apps.
-  Regenerarlo solo con lo de finance pide tu clave age.
+- **`.env.enc` sigue sin versionar** porque contiene secretos de varias apps.
+  Regenerarlo solo con lo de finance pide la clave age.
 
 ### Un traspaso de bróker no es un duplicado
 
@@ -143,8 +153,8 @@ plaza distinta, van en divisas distintas.
 
 Fusionarlos juntaría dos escalas de precio bajo un mismo coste medio, y borrar el
 cerrado tiraría operaciones reales de las que depende la rentabilidad histórica.
-Desde el PR #28 el detector solo mira posiciones vivas, así que el aviso ya no
-aparece; la guarda de divisa sigue como segunda red.
+El detector solo mira posiciones vivas, así que el aviso ya no aparece; la
+guarda de divisa sigue como segunda red.
 
 > Los casos concretos de una cartera no se documentan aquí: este repositorio es
 > público. Ver «Datos reales» en el README.
