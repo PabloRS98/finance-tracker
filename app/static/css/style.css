@@ -101,8 +101,8 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
     align-items: center;
     gap: .55rem;
     color: var(--text);
-    font-weight: 650;
-    font-size: 1rem;
+    font-weight: var(--p-fuerte);
+    font-size: var(--t-seccion);
     margin-right: auto;
 }
 .brand:hover { text-decoration: none; }
@@ -117,8 +117,8 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
     padding: .45rem .8rem;
     border-radius: var(--r-sm);
     color: var(--text-2);
-    font-size: .9rem;
-    font-weight: 500;
+    font-size: var(--t-cuerpo);
+    font-weight: var(--p-medio);
 }
 .nav-links a:hover { color: var(--text); background: var(--card-2); text-decoration: none; }
 .nav-links a.active { color: var(--accent-soft); background: color-mix(in srgb, var(--accent) 13%, transparent); }
@@ -146,8 +146,8 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
     display: flex;
     align-items: center;
     gap: .5rem;
-    font-size: .95rem;
-    font-weight: 600;
+    font-size: var(--t-seccion);
+    font-weight: var(--p-fuerte);
     margin: 0 0 .9rem;
 }
 .card > h3 .icon, .card-title .icon { color: var(--accent); }
@@ -157,22 +157,22 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
 
 /* Tarjeta de estadística */
 .stat { display: flex; flex-direction: column; gap: .35rem; }
-.stat .stat-head { display: flex; align-items: center; gap: .5rem; color: var(--text-2); font-size: .82rem; font-weight: 550; }
+.stat .stat-head { display: flex; align-items: center; gap: .5rem; color: var(--text-2); font-size: var(--t-apoyo); font-weight: var(--p-medio); }
 .stat .stat-head .icon { padding: .3rem; border-radius: 7px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-soft); box-sizing: content-box; }
 .stat.positive .stat-head .icon { background: color-mix(in srgb, var(--positive) 13%, transparent); color: var(--positive); }
 .stat.negative .stat-head .icon { background: color-mix(in srgb, var(--negative) 13%, transparent); color: var(--negative); }
 
-.big-number { font-size: 1.7rem; font-weight: 680; margin: 0; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.big-number { font-size: var(--t-cifra); font-weight: var(--p-maximo); margin: 0; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .big-number.positive { color: var(--positive); }
 .big-number.negative { color: var(--negative); }
-.big-number small { font-size: .95rem; font-weight: 550; color: var(--text-3); }
+.big-number small { font-size: var(--t-seccion); font-weight: var(--p-medio); color: var(--text-3); }
 
-.hint { color: var(--text-2); font-size: .84rem; }
+.hint { color: var(--text-2); font-size: var(--t-apoyo); }
 .hint.negative { color: var(--negative); }
-.subtle { color: var(--text-3); font-size: .8rem; }
+.subtle { color: var(--text-3); font-size: var(--t-apoyo); }
 .positive { color: var(--positive); }
 .negative { color: var(--negative); }
-.day-change { font-size: .86rem; font-weight: 560; font-variant-numeric: tabular-nums; margin: 0; }
+.day-change { font-size: var(--t-cuerpo); font-weight: var(--p-medio); font-variant-numeric: tabular-nums; margin: 0; }
 
 /* Modo privacidad: difumina cualquier cifra de dinero (toggle del ojo, persistente) */
 .privacy .big-number, .privacy td.num, .privacy .day-change,
@@ -180,7 +180,7 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
 .privacy #btn-privacy { color: var(--accent-soft); }
 
 /* Toggle de divisa secundaria (EUR⇄USD): texto compacto, acento cuando está activo */
-#btn-currency { font-size: .78rem; font-weight: 700; letter-spacing: .02em; }
+#btn-currency { font-size: var(--t-apoyo); font-weight: var(--p-maximo); letter-spacing: .02em; }
 #btn-currency.active { color: var(--accent-soft); background: color-mix(in srgb, var(--accent) 13%, transparent); }
 
 /* Lista de avisos X-Ray */
@@ -198,8 +198,8 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
 
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 
-th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--border); font-size: .88rem; }
-th { color: var(--text-3); font-weight: 550; font-size: .76rem; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--border); font-size: var(--t-cuerpo); }
+th { color: var(--text-3); font-weight: var(--p-medio); font-size: var(--t-apoyo); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
 tbody tr:hover { background: color-mix(in srgb, var(--card-2) 60%, transparent); }
 tbody tr:last-child td { border-bottom: none; }
 td.num, th.num { text-align: right; white-space: nowrap; }
@@ -210,7 +210,7 @@ td .actions { display: flex; gap: .35rem; justify-content: flex-end; }
 .inline-form { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 
 .field { display: flex; flex-direction: column; gap: .3rem; }
-.field > label { font-size: .78rem; font-weight: 550; color: var(--text-2); }
+.field > label { font-size: var(--t-apoyo); font-weight: var(--p-medio); color: var(--text-2); }
 
 input, select, textarea {
     background: var(--bg-soft);
@@ -218,7 +218,7 @@ input, select, textarea {
     color: var(--text);
     padding: .5rem .65rem;
     border-radius: var(--r-sm);
-    font-size: .9rem;
+    font-size: var(--t-cuerpo);
     font-family: var(--font);
     width: 100%;
     min-width: 0;
@@ -231,7 +231,7 @@ input:focus, select:focus, textarea:focus {
 }
 input::placeholder, textarea::placeholder { color: var(--text-3); }
 textarea { min-height: 70px; resize: vertical; }
-input[type="file"] { padding: .4rem; font-size: .82rem; }
+input[type="file"] { padding: .4rem; font-size: var(--t-apoyo); }
 input[type="file"]::file-selector-button {
     background: var(--card-2); border: 1px solid var(--border); color: var(--text-2);
     padding: .35rem .7rem; border-radius: 6px; margin-right: .6rem; cursor: pointer; font-family: var(--font);
@@ -249,8 +249,8 @@ button, .btn {
     padding: .5rem .95rem;
     border-radius: var(--r-sm);
     cursor: pointer;
-    font-size: .86rem;
-    font-weight: 570;
+    font-size: var(--t-cuerpo);
+    font-weight: var(--p-medio);
     font-family: var(--font);
     white-space: nowrap;
     position: relative;
@@ -274,7 +274,7 @@ button.danger, .btn.danger {
 }
 button.danger:hover { background: color-mix(in srgb, var(--negative) 22%, transparent); filter: none; }
 
-button.small, .btn.small { padding: .3rem .6rem; font-size: .78rem; gap: .3rem; }
+button.small, .btn.small { padding: .3rem .6rem; font-size: var(--t-apoyo); gap: .3rem; }
 button.icon-btn { padding: .42rem; }
 
 /* Spinner de carga en botones (JS añade .is-loading) */
@@ -298,9 +298,6 @@ button.ghost.is-loading::after, button.danger.is-loading::after {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Indicador HTMX (búsquedas en vivo, etc.) */
-.htmx-indicator { display: none; }
-.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-flex; }
 .spinner {
     width: 16px; height: 16px; border-radius: 50%;
     border: 2px solid var(--border-2); border-top-color: var(--accent);
@@ -313,7 +310,7 @@ button.ghost.is-loading::after, button.danger.is-loading::after {
 .tag {
     display: inline-flex; align-items: center; gap: .3rem;
     background: var(--card-2); color: var(--text-2);
-    padding: .16rem .55rem; border-radius: 999px; font-size: .74rem; font-weight: 520;
+    padding: .16rem .55rem; border-radius: 999px; font-size: var(--t-apoyo); font-weight: var(--p-medio);
     border: 1px solid var(--border);
 }
 .tag.accent { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
@@ -327,7 +324,7 @@ button.ghost.is-loading::after, button.danger.is-loading::after {
 .chips { display: flex; flex-wrap: wrap; gap: .45rem; }
 .chips a {
     display: inline-flex; align-items: center; gap: .35rem;
-    padding: .32rem .75rem; border-radius: 999px; font-size: .8rem; font-weight: 530;
+    padding: .32rem .75rem; border-radius: 999px; font-size: var(--t-apoyo); font-weight: var(--p-medio);
     border: 1px solid var(--border-2); color: var(--text-2); background: transparent;
 }
 .chips a:hover { color: var(--text); background: var(--card-2); text-decoration: none; }
@@ -358,7 +355,7 @@ button.ghost.is-loading::after, button.danger.is-loading::after {
     color: var(--text);
     padding: .6rem .95rem;
     border-radius: 10px;
-    font-size: .87rem;
+    font-size: var(--t-cuerpo);
     box-shadow: var(--sombra-2);
     animation: toast-in .22s ease-out;
     max-width: 100%;
@@ -389,7 +386,7 @@ dialog {
     box-shadow: var(--sombra-2), var(--luz-borde);
 }
 dialog::backdrop { background: rgba(5, 7, 10, .62); backdrop-filter: blur(3px); }
-dialog h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; margin-bottom: 1rem; }
+dialog h3 { display: flex; align-items: center; gap: .5rem; font-size: var(--t-seccion); margin-bottom: 1rem; }
 dialog h3 .icon { color: var(--accent); }
 dialog .form-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 dialog .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.1rem; }
@@ -399,7 +396,7 @@ dialog .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; m
 .pagination .subtle { min-width: 0; text-align: center; }
 
 /* ---------- Barras de presupuesto / progreso ---------- */
-.budget-row { display: grid; grid-template-columns: minmax(90px, 150px) 1fr minmax(130px, auto); gap: .8rem; align-items: center; padding: .45rem 0; font-size: .87rem; }
+.budget-row { display: grid; grid-template-columns: minmax(90px, 150px) 1fr minmax(130px, auto); gap: .8rem; align-items: center; padding: .45rem 0; font-size: var(--t-cuerpo); }
 .budget-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
 .progress { background: var(--bg-soft); border-radius: 999px; overflow: hidden; height: 8px; border: 1px solid var(--border); }
 .progress > div { background: var(--accent); height: 100%; border-radius: 999px; transition: width .4s ease; }
@@ -414,7 +411,7 @@ dialog .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; m
     align-items: center;
     padding: .55rem 0;
     border-bottom: 1px solid var(--border);
-    font-size: .88rem;
+    font-size: var(--t-cuerpo);
 }
 .pending-row:last-child { border-bottom: none; }
 .pending-row .row-actions { display: flex; gap: .35rem; }
@@ -429,18 +426,18 @@ dialog .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; m
 
 /* ---------- Detalles / secciones plegables ---------- */
 details summary {
-    cursor: pointer; color: var(--text-2); font-size: .86rem; font-weight: 550;
+    cursor: pointer; color: var(--text-2); font-size: var(--t-cuerpo); font-weight: var(--p-medio);
     display: flex; align-items: center; gap: .4rem; list-style: none; user-select: none;
 }
 details summary::-webkit-details-marker { display: none; }
-details summary::before { content: "▸"; color: var(--text-3); transition: transform .15s; font-size: .75rem; }
+details summary::before { content: "▸"; color: var(--text-3); transition: transform .15s; font-size: var(--t-etiqueta); }
 details[open] summary::before { transform: rotate(90deg); }
 details[open] summary { margin-bottom: .7rem; }
 
 /* ---------- Estado vacío ---------- */
 .empty {
     display: flex; flex-direction: column; align-items: center; gap: .5rem;
-    color: var(--text-3); padding: 1.8rem 1rem; text-align: center; font-size: .88rem;
+    color: var(--text-3); padding: 1.8rem 1rem; text-align: center; font-size: var(--t-cuerpo);
 }
 .empty .icon { color: var(--text-3); opacity: .7; }
 
@@ -449,7 +446,7 @@ details[open] summary { margin-bottom: .7rem; }
 canvas { max-width: 100%; }
 
 /* ---------- Activos: tarjetas de holdings + ficha ---------- */
-.add-asset > summary { cursor: pointer; color: var(--text-2); font-size: .88rem; font-weight: 550; list-style: none; display: inline-flex; align-items: center; gap: .4rem; }
+.add-asset > summary { cursor: pointer; color: var(--text-2); font-size: var(--t-cuerpo); font-weight: var(--p-medio); list-style: none; display: inline-flex; align-items: center; gap: .4rem; }
 .add-asset > summary::-webkit-details-marker { display: none; }
 .add-asset > summary:hover { color: var(--text); }
 .add-asset[open] > summary { color: var(--accent-soft); margin-bottom: .2rem; }
@@ -460,15 +457,15 @@ canvas { max-width: 100%; }
 .holding-main { display: flex; align-items: center; gap: 1.2rem; flex: 1; padding: .72rem .5rem .72rem .95rem; color: inherit; min-width: 0; }
 .holding-main:hover { text-decoration: none; }
 .holding-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .1rem; }
-.holding-name strong { font-size: .95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.holding-name strong { font-size: var(--t-seccion); font-weight: var(--p-fuerte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .holding-metric, .holding-value { display: flex; flex-direction: column; gap: .12rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .holding-metric { min-width: 4.2rem; }
 .holding-value { min-width: 6.5rem; }
-.holding-metric .lbl, .holding-value .lbl { font-size: .64rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); font-weight: 600; }
-.holding-metric .val { font-size: .9rem; font-weight: 550; }
-.holding-metric .val small { font-weight: 500; }
-.holding-value strong { font-size: 1rem; font-weight: 680; letter-spacing: -.01em; }
-.holding-value strong small { font-weight: 500; }
+.holding-metric .lbl, .holding-value .lbl { font-size: var(--t-etiqueta); text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); font-weight: var(--p-fuerte); }
+.holding-metric .val { font-size: var(--t-cuerpo); font-weight: var(--p-medio); }
+.holding-metric .val small { font-weight: var(--p-medio); }
+.holding-value strong { font-size: var(--t-seccion); font-weight: var(--p-maximo); letter-spacing: -.01em; }
+.holding-value strong small { font-weight: var(--p-medio); }
 .holding-chevron { color: var(--text-3); display: flex; align-items: center; }
 .holding-actions { display: flex; align-items: center; gap: .3rem; padding: 0 .7rem; border-left: 1px solid var(--border); }
 
@@ -499,19 +496,19 @@ canvas { max-width: 100%; }
     border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
     box-shadow: var(--sombra-2), var(--luz-borde);
 }
-.hero-card .hero-number { font-size: 2.3rem; }
+.hero-card .hero-number { font-size: var(--t-heroe); }
 .spark-box { position: relative; height: 58px; margin-top: auto; }
 
 details.collapsible > summary {
     display: flex; align-items: center; gap: .5rem;
-    font-size: .95rem; font-weight: 620; cursor: pointer; list-style: none;
+    font-size: var(--t-seccion); font-weight: var(--p-fuerte); cursor: pointer; list-style: none;
     user-select: none;
 }
 details.collapsible > summary::-webkit-details-marker { display: none; }
 details.collapsible > summary .icon { color: var(--accent); }
 details.collapsible > summary::after {
     content: "›"; margin-left: auto; color: var(--text-3);
-    font-size: 1.15rem; line-height: 1; transition: transform .15s;
+    font-size: var(--t-titulo); line-height: 1; transition: transform .15s;
 }
 details.collapsible[open] > summary::after { transform: rotate(90deg); }
 details.collapsible[open] > summary { margin-bottom: .55rem; }
@@ -523,7 +520,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
 .range-chips { display: flex; gap: .25rem; }
 .range-chips button {
     background: var(--card-2); border: 1px solid var(--border); color: var(--text-2);
-    padding: .18rem .6rem; border-radius: 999px; font-size: .74rem; font-weight: 550; cursor: pointer;
+    padding: .18rem .6rem; border-radius: 999px; font-size: var(--t-apoyo); font-weight: var(--p-medio); cursor: pointer;
 }
 .range-chips button:hover { color: var(--text); filter: none; }
 .range-chips button.active {
@@ -552,17 +549,17 @@ details.collapsible.card { margin-bottom: 1.25rem; }
 }
 .ac-item:last-child { border-bottom: 0; }
 .ac-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); filter: none; }
-.ac-item strong { font-size: .86rem; }
-.ac-item span { font-size: .78rem; color: var(--text-2); }
-.ac-item small { font-size: .68rem; color: var(--text-3); }
+.ac-item strong { font-size: var(--t-cuerpo); }
+.ac-item span { font-size: var(--t-apoyo); color: var(--text-2); }
+.ac-item small { font-size: var(--t-etiqueta); color: var(--text-3); }
 
 /* Ficha de activo */
 .back-link { margin-bottom: 1rem; }
 .detail-head { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .detail-head-info { flex: 1; min-width: 12rem; display: flex; flex-direction: column; gap: .55rem; }
-.detail-head-info h2 { margin: 0; font-size: 1.35rem; letter-spacing: -.02em; }
+.detail-head-info h2 { margin: 0; font-size: var(--t-titulo); letter-spacing: -.02em; }
 .detail-head-value { text-align: right; }
-.detail-head-value .big-number { font-size: 1.9rem; }
+.detail-head-value .big-number { font-size: var(--t-cifra); }
 .detail-head-actions { display: flex; gap: .4rem; flex-basis: 100%; justify-content: flex-end; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: .8rem; }
 .detail-head-actions form { display: inline; }
 
@@ -571,49 +568,8 @@ details.collapsible.card { margin-bottom: 1.25rem; }
     .detail-head-actions { justify-content: flex-start; }
 }
 
-/* ---------- Catálogo de medios (media-catalog) ---------- */
-.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; margin-top: .9rem; }
-
-.media-card { display: flex; flex-direction: column; gap: .45rem; padding: .8rem; }
-.media-card .cover { position: relative; border-radius: var(--r-sm); overflow: hidden; aspect-ratio: 2/3; background: var(--bg-soft); border: 1px solid var(--border); }
-.media-card .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.media-card .cover .no-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
-.media-card .cover .status-badge { position: absolute; top: .45rem; left: .45rem; }
-.media-card .title { font-weight: 600; font-size: .9rem; line-height: 1.3; }
-.media-card .meta { color: var(--text-3); font-size: .77rem; }
-
-.status-badge {
-    display: inline-flex; align-items: center; gap: .25rem;
-    padding: .14rem .5rem; border-radius: 999px; font-size: .68rem; font-weight: 620;
-    text-transform: uppercase; letter-spacing: .04em;
-    background: var(--card-2); color: var(--text-2); border: 1px solid var(--border-2);
-}
-.status-badge.pendiente { background: rgba(120, 130, 150, .18); color: #b6bfd0; }
-.status-badge.en_progreso { background: color-mix(in srgb, var(--accent) 20%, rgba(10,12,18,.75)); color: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
-.status-badge.completado { background: color-mix(in srgb, var(--positive) 18%, rgba(10,12,18,.75)); color: var(--positive); border-color: color-mix(in srgb, var(--positive) 40%, transparent); }
-.status-badge.abandonado { background: color-mix(in srgb, var(--negative) 16%, rgba(10,12,18,.75)); color: var(--negative); border-color: color-mix(in srgb, var(--negative) 35%, transparent); }
-
-.rating-chip { display: inline-flex; align-items: center; gap: .25rem; color: var(--warning); font-size: .8rem; font-weight: 600; }
-
 .toolbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 .toolbar .grow { flex: 1; }
-
-/* ---------- Dashboard de proyectos (projects-dashboard) ---------- */
-.project-card { display: flex; flex-direction: column; gap: .5rem; }
-.project-header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
-.project-header strong { font-size: .98rem; display: inline-flex; align-items: center; gap: .45rem; }
-
-.task-list { list-style: none; padding: 0; margin: .4rem 0; }
-.task-list li { display: flex; align-items: center; gap: .5rem; padding: .22rem 0; font-size: .86rem; }
-.task-list .done { text-decoration: line-through; color: var(--text-3); }
-.task-toggle { background: transparent; border: 1px solid var(--border-2); color: var(--text-2); padding: .12rem .3rem; border-radius: 6px; }
-.task-toggle:hover { color: var(--positive); border-color: var(--positive); filter: none; background: transparent; }
-
-.ci-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.ci-dot.ok { background: var(--positive); }
-.ci-dot.bad { background: var(--negative); }
-.ci-dot.run { background: var(--warning); animation: pulse-dot 1.2s ease-in-out infinite; }
-@keyframes pulse-dot { 50% { opacity: .4; } }
 
 /* ---------- Móvil ---------- */
 @media (max-width: 720px) {
@@ -637,7 +593,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
         border-top: 1px solid var(--border);
         padding: .4rem .5rem calc(.4rem + env(safe-area-inset-bottom));
     }
-    .nav-links a { flex-direction: column; gap: .18rem; font-size: .64rem; padding: .3rem .55rem; flex: 1; }
+    .nav-links a { flex-direction: column; gap: .18rem; font-size: var(--t-etiqueta); padding: .3rem .55rem; flex: 1; }
     .nav-links a .icon { width: 21px; height: 21px; }
     .nav-links a.active { background: transparent; }
 
@@ -645,7 +601,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
 
     .grid-summary { grid-template-columns: repeat(2, 1fr); gap: .7rem; }
     .grid-charts { grid-template-columns: 1fr; }
-    .big-number { font-size: 1.35rem; }
+    .big-number { font-size: var(--t-titulo); }
     .chart-box { height: 215px; }
 
     .form-grid { grid-template-columns: 1fr 1fr; }
@@ -657,8 +613,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
     .budget-row { grid-template-columns: 1fr; gap: .25rem; }
     .budget-row .num { text-align: left; }
 
-    th, td { padding: .5rem .45rem; font-size: .83rem; }
-    .grid-cards { grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: .7rem; }
+    th, td { padding: .5rem .45rem; font-size: var(--t-cuerpo); }
     dialog { padding: 1.05rem; }
 }
 
@@ -719,8 +674,8 @@ details.collapsible.card { margin-bottom: 1.25rem; }
     transition: filter .15s ease;
 }
 .heatmap-cell:hover { filter: brightness(1.25); }
-.heatmap-cell strong { font-size: .78rem; letter-spacing: .01em; }
-.heatmap-cell span { font-size: .7rem; opacity: .82; font-variant-numeric: tabular-nums; }
+.heatmap-cell strong { font-size: var(--t-apoyo); letter-spacing: .01em; }
+.heatmap-cell span { font-size: var(--t-etiqueta); opacity: .82; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 620px) { .heatmap { height: 215px; } }
 
@@ -795,7 +750,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
         flex: 1;
         min-height: 44px;          /* mínimo táctil cómodo */
         padding: .3rem .55rem;
-        font-size: .64rem;
+        font-size: var(--t-etiqueta);
         background: none;
         border: none;
         color: var(--text-dim);
@@ -867,7 +822,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
     table.apilable td[data-col]::before {
         content: attr(data-col);
         color: var(--text-dim);
-        font-size: .72rem;
+        font-size: var(--t-etiqueta);
         text-transform: uppercase;
         letter-spacing: .03em;
         flex: 0 0 auto;
@@ -893,7 +848,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
     padding: .55rem;
     background: var(--card-2);
     border-bottom: 1px solid var(--border);
-    font-size: .78rem;
+    font-size: var(--t-apoyo);
     color: var(--text-dim);
     transform: translateY(-100%);
 }
@@ -917,7 +872,7 @@ details.collapsible.card { margin-bottom: 1.25rem; }
     background: var(--av-color, #4f8ef7);
     color: #fff;
     font-size: calc(var(--av-tam, 32px) * .38);
-    font-weight: 600;
+    font-weight: var(--p-fuerte);
     letter-spacing: .02em;
     /* El texto blanco sobre colores claros del arco necesita ayuda */
     text-shadow: 0 1px 2px rgba(0, 0, 0, .35);
@@ -944,7 +899,7 @@ h2 .avatar-activo { vertical-align: -.35em; margin-right: .15rem; }
     border: 1px solid var(--border);
     background: var(--card-2);
     color: var(--text-dim);
-    font-size: .8rem;
+    font-size: var(--t-apoyo);
     white-space: nowrap;
 }
 .filtro-chips .chip:hover { color: var(--text); text-decoration: none; }
@@ -959,10 +914,10 @@ tr.separador-mes td {
     padding: .75rem .45rem .3rem;
     border: none;
     color: var(--text-dim);
-    font-size: .74rem;
+    font-size: var(--t-apoyo);
     text-transform: uppercase;
     letter-spacing: .06em;
-    font-weight: 600;
+    font-weight: var(--p-fuerte);
 }
 
 @media (max-width: 620px) {
@@ -980,18 +935,30 @@ tr.separador-mes td {
 }
 
 /* ---------- Escala tipográfica ---------- */
-/* Los tamaños ya estaban repartidos con criterio; se recogen aquí como tokens
-   para que lo que se añada mañana elija de esta lista en vez de inventar un
-   valor nuevo y desalinear el conjunto. No cambian los tamaños actuales. */
+/* Estos tokens ya existían, pero con CERO usos: se declararon como
+   documentación y el CSS siguió escribiendo el tamaño a mano. El resultado
+   eran 25 tamaños distintos, 20 de ellos apiñados entre .64 y 1rem, con pares
+   separados por .01rem —0,16px, invisible—. Eso no es una escala, es deriva.
+   Ahora no queda ningún font-size suelto en el fichero.
+
+   Los escalones van a un 12% como mínimo unos de otros, que es donde el ojo
+   empieza a separarlos. */
 :root {
-    --t-heroe: 2.3rem;     /* patrimonio en la portada */
-    --t-cifra: 1.7rem;     /* cifras grandes de tarjeta */
-    --t-titulo: 1.35rem;   /* título de ficha */
-    --t-seccion: 1rem;     /* cabecera de tarjeta y de diálogo */
-    --t-cuerpo: .88rem;    /* texto normal */
-    --t-nota: .84rem;      /* .hint */
-    --t-apoyo: .8rem;      /* .subtle */
-    --t-etiqueta: .64rem;  /* rótulos en mayúsculas de las tarjetas */
+    --t-heroe: 2.3rem;      /* 36,8px · patrimonio en la portada */
+    --t-cifra: 1.7rem;      /* 27,2px · cifras grandes de tarjeta */
+    --t-titulo: 1.3rem;     /* 20,8px · título de página */
+    --t-seccion: 1rem;      /* 16px   · cabecera de tarjeta y de diálogo */
+    --t-cuerpo: .875rem;    /* 14px   · texto normal, tablas, formularios */
+    --t-apoyo: .78rem;      /* 12,5px · notas, texto apagado, chips */
+    --t-etiqueta: .66rem;   /* 10,6px · rótulos en mayúsculas */
+}
+
+/* Tres pesos. Antes había doce, con 520, 530, 550, 560 y 570 conviviendo:
+   cincuenta unidades de una fuente variable no se distinguen a estos tamaños. */
+:root {
+    --p-medio: 550;
+    --p-fuerte: 620;
+    --p-maximo: 700;
 }
 
 /* ---------- Estados vacíos con acción ---------- */
