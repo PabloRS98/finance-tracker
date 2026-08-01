@@ -1,0 +1,113 @@
+# Prueba el camino de despliegue, no el código: construye la imagen y la levanta
+# contra volúmenes en los estados que han roto la app de verdad.
+#
+# Los dos incidentes graves de este proyecto no los habría cazado ningún test
+# unitario, porque no estaban en el código: una columna que faltaba en la
+# migración (la app estuvo semanas devolviendo 500 en todas las páginas) y un
+# volumen cuyos ficheros pertenecían a root ("attempt to write a readonly
+# database", bucle de reinicio). Los dos se reproducen aquí.
+name: despliegue
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  contenedor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: docker build -t finance-tracker:ci .
+
+      # ---------- Caso 1: instalación nueva ----------
+
+      - name: Volumen vacío, como un despliegue nuevo
+        run: |
+          docker volume create ft-nuevo
+          docker run -d --name ft-nuevo -p 8001:8000 -v ft-nuevo:/data finance-tracker:ci
+          ./.github/esperar-salud.sh ft-nuevo 8001
+
+      - name: Las páginas responden
+        run: ./.github/comprobar-rutas.sh 8001
+
+      # ---------- Caso 2: base anterior a Alembic ----------
+      # El fallo que tuvo la app caída ~3 semanas. Una base creada con
+      # create_all() no tiene alembic_version y le faltan las columnas añadidas
+      # después: init_db() tiene que detectarla y ponerla al día en el arranque.
+
+      - name: Preparar una base anterior a Alembic
+        run: |
+          docker volume create ft-viejo
+          docker run --rm -v ft-viejo:/data -v "$PWD/scripts:/scripts:ro" \
+            -e DB_PATH=/data/finance.db -e PYTHONPATH=/app --entrypoint python \
+            finance-tracker:ci /scripts/base_pre_alembic.py
+
+      - name: Arranca y se migra sola
+        run: |
+          docker run -d --name ft-viejo -p 8002:8000 -v ft-viejo:/data finance-tracker:ci
+          ./.github/esperar-salud.sh ft-viejo 8002
+          ./.github/comprobar-rutas.sh 8002
+
+      - name: Los datos de antes siguen ahí
+        run: |
+          docker exec ft-viejo python -c "
+          from app.database import SessionLocal
+          from app.models import Asset
+          db = SessionLocal()
+          nombres = [a.name for a in db.query(Asset).all()]
+          assert nombres == ['Activo de prueba'], nombres
+          print('activos conservados:', nombres)
+          "
+
+      # ---------- Caso 3: volumen en manos de root ----------
+      # El chown del Dockerfile solo afecta a la imagen: un volumen que ya
+      # existe conserva la propiedad de sus ficheros. El entrypoint tiene que
+      # ajustarla en cada arranque o la app no puede ni abrir la base.
+
+      - name: Volumen cuyos ficheros pertenecen a root
+        run: |
+          docker volume create ft-root
+          docker run --rm -u 0:0 -v ft-root:/data --entrypoint sh finance-tracker:ci \
+            -c "touch /data/finance.db && chown -R 0:0 /data && chmod 600 /data/finance.db"
+          docker run -d --name ft-root -p 8003:8000 -v ft-root:/data finance-tracker:ci
+          ./.github/esperar-salud.sh ft-root 8003
+          ./.github/comprobar-rutas.sh 8003
+
+      - name: La app no corre como root
+        run: |
+          usuario=$(docker exec ft-root id -un)
+          test "$usuario" = "finance" || { echo "corre como $usuario"; exit 1; }
+          echo "corre como $usuario"
+
+      # ---------- El healthcheck avisa cuando se rompe ----------
+
+      - name: Una columna que falta deja el contenedor en 503
+        run: |
+          docker exec ft-nuevo python -c "
+          from app.database import engine
+          from sqlalchemy import text
+          with engine.begin() as c:
+              c.execute(text('ALTER TABLE assets DROP COLUMN avg_cost_override'))
+          "
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8001/salud)
+          test "$codigo" = "503" || { echo "/salud devolvió $codigo, se esperaba 503"; exit 1; }
+          echo "/salud devuelve 503 con el esquema roto"
+
+      - name: Logs si algo ha fallado
+        if: failure()
+        run: |
+          for c in ft-nuevo ft-viejo ft-root; do
+            echo "===== $c ====="
+            docker logs "$c" 2>&1 | tail -40 || true
+          done
+
+      - name: Limpiar
+        if: always()
+        run: |
+          docker rm -f ft-nuevo ft-viejo ft-root 2>/dev/null || true
+          docker volume rm ft-nuevo ft-viejo ft-root 2>/dev/null || true
