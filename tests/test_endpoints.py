@@ -86,7 +86,13 @@ def test_activo_inexistente_redirige_sin_romper(client):
     assert resp.headers["location"] == "/activos"
 
 
-def test_salud(client):
+def test_salud(client, monkeypatch):
+    """Con el esquema al día y la base consultable, 200. El detalle de qué
+    comprueba está en tests/test_salud_y_errores.py."""
+    from app import main
+
+    monkeypatch.setattr(main, "revision_pendiente", lambda bind=None: ("head", "head"))
+
     assert client.get("/salud").json() == {"status": "ok"}
 
 
@@ -131,8 +137,11 @@ def test_cuentas_pide_credenciales(client, con_auth):
 
 
 def test_salud_no_pide_credenciales(client, con_auth):
-    """El healthcheck de Docker no lleva credenciales: debe seguir abierto."""
-    assert client.get("/salud").status_code == 200
+    """El healthcheck de Docker no lleva credenciales: debe seguir abierto.
+
+    Se comprueba que no sea 401, no que sea 200: /salud devuelve 503 cuando la
+    app no puede servir páginas, y eso también es una respuesta sin auth."""
+    assert client.get("/salud").status_code != 401
 
 
 def test_credenciales_correctas_dan_acceso(client, con_auth):

@@ -27,6 +27,11 @@ services:
     healthcheck:
       # La suite definía el healthcheck por fuera; al independizarse hay que
       # declararlo aquí o el contenedor pasaría a no tener ninguno.
+      #
+      # /salud consulta la base de datos y devuelve 503 si no puede servir
+      # páginas. `urlopen` lanza HTTPError con cualquier código que no sea 2xx,
+      # así que ese 503 marca el contenedor como unhealthy: es lo que faltaba
+      # cuando la app estuvo semanas "healthy" devolviendo 500 en todas partes.
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/salud', timeout=3)"]
       interval: 60s
       timeout: 5s
