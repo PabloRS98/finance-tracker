@@ -191,3 +191,12 @@ Todas públicas y sin API key:
 Si una fuente falla, la app **no** inventa valores: los activos que no puede
 convertir quedan fuera de los totales y se avisa en pantalla, y los snapshots
 históricos incompletos no se guardan.
+
+## Licencia
+
+MIT, en [`LICENSE`](LICENSE).
+
+El repositorio incluye además Chart.js y los iconos de Lucide (ambos MIT) y la
+fuente Inter (SIL Open Font License 1.1), vendorizados para que la app funcione
+sin build step y sin depender de una CDN. Cada uno conserva su licencia: el
+detalle está en [`NOTICE`](NOTICE).

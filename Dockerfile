@@ -12,6 +12,11 @@ COPY migrations ./migrations
 # (docker exec finance-tracker pytest -q) sin tener que copiarlos a mano.
 COPY tests ./tests
 
+# La imagen lleva dentro la fuente Inter y Chart.js, así que los redistribuye:
+# la OFL exige que su aviso viaje con la fuente, no solo en el repositorio.
+COPY LICENSE NOTICE ./
+COPY licencias ./licencias
+
 # Usuario sin privilegios: la app no necesita root, y /data tiene que
 # pertenecerle para poder escribir la BD y los backups.
 RUN mkdir -p /data && useradd --system --uid 1000 finance && chown -R finance:finance /data /app
