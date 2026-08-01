@@ -81,3 +81,50 @@ def test_los_dialogos_flotan_sobre_el_contenido():
     bloque = CSS.split("\ndialog {")[1].split("}")[0]
 
     assert "--card-alto" in bloque and "--sombra-2" in bloque
+
+
+# ---------- Escala tipográfica ----------
+# Los tokens --t-* existían desde hacía tiempo con CERO usos: se declararon como
+# documentación y el CSS siguió escribiendo el tamaño a mano. Quedaron 25
+# tamaños distintos, 20 apiñados entre .64 y 1rem, con pares separados por
+# .01rem. Eso no es una escala, es deriva.
+
+import re
+
+ESCALA = ["t-heroe", "t-cifra", "t-titulo", "t-seccion",
+          "t-cuerpo", "t-apoyo", "t-etiqueta"]
+
+
+def test_ningun_tamano_de_letra_va_suelto():
+    """Un font-size a mano es el primer paso para volver a tener veinticinco."""
+    sueltos = re.findall(r"font-size:\s*([0-9.]+rem)", CSS)
+
+    assert sueltos == [], "escriben el tamaño en vez de usar un token: %s" % sorted(set(sueltos))
+
+
+def test_ningun_peso_de_letra_va_suelto():
+    fuera = re.findall(r"font-weight:\s*(\d+)\s*;", CSS)
+
+    assert fuera == [], "pesos a mano: %s" % sorted(set(fuera))
+
+
+@pytest.mark.parametrize("token", ESCALA)
+def test_todos_los_escalones_se_usan(token):
+    """Un escalón sin usar es un escalón que sobra, y el ruido vuelve por ahí."""
+    assert CSS.count("var(--%s)" % token) >= 1
+
+
+def test_los_escalones_se_distinguen_entre_si():
+    """Por debajo de un 12% el ojo no separa dos tamaños: .87 frente a .88 eran
+    el mismo tamaño escrito de dos formas."""
+    valores = [float(_token(t).replace("rem", "")) for t in ESCALA]
+
+    for grande, pequeno in zip(valores, valores[1:]):
+        assert grande / pequeno >= 1.12, "%s y %s no se distinguen" % (grande, pequeno)
+
+
+@pytest.mark.parametrize("clase", ["media-card", "project-card", "status-badge", "htmx-indicator"])
+def test_no_vuelve_el_css_de_las_otras_apps(clase):
+    """El fichero venía de una suite compartida y arrastraba los estilos de
+    media-catalog y projects-dashboard: 29 bloques que esta app no usa."""
+    assert ("." + clase) not in CSS
