@@ -250,8 +250,21 @@ def portfolio_evolution(db: Session) -> list[dict]:
     snapshots = db.query(NetWorthSnapshot).order_by(NetWorthSnapshot.date).all()
 
     if not ops:
-        # Sin operaciones: la gráfica clásica de snapshots
-        return [{"fecha": s.date.isoformat(), "total": s.total_value, "invertido": 0.0} for s in snapshots]
+        # Sin operaciones: la gráfica clásica de snapshots. Emite las MISMAS
+        # claves que el camino normal aunque valgan cero. Cuando faltaban,
+        # /analisis reventaba con KeyError: 'twr' en cualquier instalación
+        # recién montada —el arranque crea un snapshot, así que la lista no
+        # estaba vacía y el `if evolution` de la vista no protegía de nada—.
+        return [
+            {
+                "fecha": s.date.isoformat(),
+                "total": s.total_value,
+                "invertido": 0.0,
+                "aportado": 0.0,
+                "twr": 0.0,
+            }
+            for s in snapshots
+        ]
 
     start = ops[0].date
     if snapshots and snapshots[0].date < start:
