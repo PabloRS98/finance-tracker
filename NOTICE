@@ -1,0 +1,28 @@
+Este proyecto se distribuye bajo la licencia MIT (ver LICENSE), pero incluye
+dentro del repositorio componentes de terceros con sus propias licencias. Van
+vendorizados a propósito: la app no tiene build step ni carga nada de una CDN,
+así que funciona sin red y sin depender de que un tercero siga sirviendo el
+fichero.
+
+Cada uno conserva su licencia, que es la que aplica a ese componente.
+
+
+Chart.js v4.4.4 — MIT
+    app/static/js/chart.umd.js
+    (c) 2024 Chart.js Contributors · https://www.chartjs.org
+    El aviso de licencia va en la cabecera del propio fichero.
+
+Lucide — MIT
+    app/templates/_icons.html
+    (c) 2022 Lucide Contributors · https://lucide.dev
+    Los iconos que usa la app van embebidos como macro de Jinja, no como
+    dependencia. Lucide es a su vez un fork de Feather (MIT, (c) 2013-2022
+    Cole Bemis).
+
+Inter — SIL Open Font License 1.1
+    app/static/fonts/inter-latin-wght-normal.woff2
+    (c) 2016 The Inter Project Authors · https://github.com/rsms/inter
+    Texto completo de la licencia en licencias/Inter-OFL-1.1.txt.
+
+    La OFL exige distribuir el aviso de copyright y la licencia junto a la
+    fuente, cosa que no se hacía: por eso está aquí.
