@@ -10,5 +10,5 @@ httpx==0.28.1
 # Estos dos se quedan donde estaban: no tienen vulnerabilidades conocidas, pesan
 # mucho y quedan fuera del CI de tests, así que subirlos a ciegas no lo cubriría
 # nadie. Que los proponga Dependabot en un PR aparte, revisable por separado.
-faster-whisper==1.1.1
-pymupdf==1.24.10
+faster-whisper==1.2.1
+pymupdf==1.28.0
