@@ -28,3 +28,25 @@ jobs:
         env:
           DB_PATH: ${{ runner.temp }}/finance-ci.db
         run: pytest -q
+
+  auditoria:
+    # Corre aparte de los tests: que una dependencia tenga un CVE no significa
+    # que el código esté roto, y verlo en un check propio dice de un vistazo
+    # cuál de las dos cosas ha pasado.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar pip-audit
+        run: pip install pip-audit
+
+      - name: Vulnerabilidades conocidas en las dependencias
+        # Se auditan las versiones declaradas, sin instalarlas: es lo que se va
+        # a desplegar, y evita bajarse faster-whisper entero para mirar un
+        # fichero de texto.
+        run: pip-audit -r requirements.txt --progress-spinner off
