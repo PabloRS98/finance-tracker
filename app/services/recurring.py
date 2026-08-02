@@ -12,17 +12,21 @@ libro con el tipo de cambio del momento de la generación.
 import calendar
 import logging
 from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import RecurringTransaction, Transaction, TransactionStatus
+from ..models import RecurringTransaction, Transaction, TransactionStatus, TransactionType
 from .market_data import to_base
 
 logger = logging.getLogger(__name__)
 
 # Periodicidades soportadas: meses entre cargos -> etiqueta legible
 FREQUENCIES = {1: "Mensual", 2: "Cada 2 meses", 3: "Trimestral", 6: "Semestral", 12: "Anual"}
+
+_CENT = Decimal("0.01")
+SIN_CATEGORIA = "Sin categoría"
 
 
 def clamped_date(year: int, month: int, day: int) -> date:
@@ -103,3 +107,59 @@ def generate_due_transactions(db: Session) -> int:
     if created:
         logger.info("Recurrentes: %d transacciones generadas", created)
     return created
+
+
+# ---------- Coste mensual ----------
+# Un recibo trimestral de 300 aparece como un gasto de 300 tres veces al año, y
+# en la lista compite visualmente con el alquiler. Normalizarlo a lo que pesa
+# cada mes es lo que permite comparar reglas de periodicidades distintas y saber
+# cuánto se va en recurrentes sin esperar a que caiga el cargo.
+
+def coste_mensual(rule: RecurringTransaction) -> Decimal:
+    """Lo que pesa al mes la regla, en SU divisa. Trimestral de 300 -> 100."""
+    return (Decimal(rule.amount) / _interval(rule)).quantize(_CENT, rounding=ROUND_HALF_UP)
+
+
+def resumen_mensual(db: Session) -> dict:
+    """Cuánto suman al mes las recurrentes, convertido a la moneda base.
+
+    Solo cuentan las activas: una regla pausada no se cobra, y meterla en el
+    total daría una cifra que no se corresponde con lo que sale de la cuenta.
+
+    Los totales se suman a partir de los importes YA redondeados de cada regla,
+    los mismos que se ven en la lista. Sumar los exactos y redondear al final
+    sería algo más preciso, pero dejaría un total que no cuadra con la columna
+    que el usuario tiene delante, y eso se nota más que un céntimo.
+    """
+    base = settings.base_currency
+    gastos = ingresos = Decimal("0.00")
+    por_categoria: dict[str, Decimal] = {}
+    sin_cambio: list[str] = []
+    pausadas = 0
+
+    for rule in db.query(RecurringTransaction).all():
+        if not rule.active:
+            pausadas += 1
+            continue
+        en_base = to_base(coste_mensual(rule), rule.currency.value, base)
+        if en_base is None:
+            # Sin tipo de cambio no se suma: contarlo 1:1 inventaría el total.
+            sin_cambio.append(rule.name)
+            continue
+        if rule.type == TransactionType.INGRESO:
+            ingresos += en_base
+        else:
+            gastos += en_base
+            etiqueta = rule.category.name if rule.category else SIN_CATEGORIA
+            por_categoria[etiqueta] = por_categoria.get(etiqueta, Decimal("0.00")) + en_base
+
+    return {
+        "gastos": gastos,
+        "ingresos": ingresos,
+        "neto": ingresos - gastos,
+        "gastos_anuales": gastos * 12,
+        "por_categoria": sorted(por_categoria.items(), key=lambda kv: kv[1], reverse=True),
+        "sin_cambio": sin_cambio,
+        "pausadas": pausadas,
+        "base_currency": base,
+    }
