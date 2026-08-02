@@ -182,7 +182,7 @@
             {% endif %}
             <tr>
                 <td data-col="Fecha">{{ op.date.strftime("%d/%m/%Y") }}</td>
-                <td data-col="Activo"><span class="celda-activo">{{ avatar(op.asset, 24) }}<strong>{{ op.asset.name }}</strong>{% if op.asset.ticker %} <span class="subtle">{{ op.asset.ticker }}</span>{% endif %}</span></td>
+                <td data-col="Activo" title="{{ op.asset.name }}"><span class="celda-activo">{{ avatar(op.asset, 24) }}<strong>{{ op.asset.name }}</strong>{% if op.asset.ticker %} <span class="subtle">{{ op.asset.ticker }}</span>{% endif %}</span></td>
                 <td data-col="Tipo">
                     {% if op.type.value == "compra" %}<span class="tag positive">{{ icon("trending-up", 13) }} Compra</span>
                     {% else %}<span class="tag negative">{{ icon("trending-down", 13) }} Venta</span>{% endif %}

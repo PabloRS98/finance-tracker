@@ -115,19 +115,26 @@
     </details>
     <details class="card collapsible" data-key="eurusd" open>
         <summary>{{ icon("arrow-left-right") }} Euro / Dólar</summary>
-        <p style="margin:.2rem 0 .6rem; display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap">
+        {# El valor, el porcentaje y la frase los reescribe el JS al cambiar de
+           rango o al invertir la cotización. Van servidos desde el servidor para
+           que sin JS siga viéndose el tipo de hoy en vez de un hueco. #}
+        <p class="fx-cabecera">
             {% if fx_eurusd.rate is none %}
             <span class="subtle">Tipo de cambio no disponible ahora mismo</span>
             {% else %}
-            <strong style="font-size:1.35rem; font-variant-numeric:tabular-nums">{{ ("%.4f"|format(fx_eurusd.rate)).replace(".", ",") }} <small class="subtle">USD por 1 EUR</small></strong>
+            <strong id="fx-rate">{{ ("%.4f"|format(fx_eurusd.rate)).replace(".", ",") }} <small class="subtle">USD por 1 EUR</small></strong>
+            <button type="button" id="fx-invertir" class="ghost small" title="Ver la cotización al revés">
+                {{ icon("arrow-left-right", 13) }} Invertir
+            </button>
             {% endif %}
             {% if fx_eurusd.change_pct is not none %}
-            <span class="{{ 'positive' if fx_eurusd.change_pct >= 0 else 'negative' }}">{{ "%+.2f"|format(fx_eurusd.change_pct) }}% hoy</span>
-            <span class="subtle">{{ fx_eurusd.phrase|capitalize }}</span>
+            <span id="fx-cambio" class="{{ 'positive' if fx_eurusd.change_pct >= 0 else 'negative' }}">{{ "%+.2f"|format(fx_eurusd.change_pct) }}% hoy</span>
+            <span class="subtle" id="fx-frase">{{ fx_eurusd.phrase|capitalize }}</span>
             {% endif %}
         </p>
         {% if fx_eurusd.points|length > 1 %}
         <div class="range-chips" id="fx-range-chips">
+            <button type="button" data-days="1">1D</button>
             <button type="button" data-days="7">1S</button>
             <button type="button" data-days="30">1M</button>
             <button type="button" data-days="90">3M</button>
@@ -387,27 +394,83 @@ document.addEventListener("DOMContentLoaded", () => {
     let fxChart = null;
     let fxRange = 0;  // 0 = all
 
+    // La serie viene siempre como dólares por 1 euro; invertirla es 1/x. Se
+    // recuerda la preferencia porque quien piensa en dólares la quiere siempre
+    // así, no una vez.
+    let fxInvertido = localStorage.getItem("dash.fx.invertido") === "1";
+    const FX_ETIQUETAS = { 1: "hoy", 7: "en la semana", 30: "en el mes", 90: "en 3 meses", 365: "en el año", 0: "en todo el histórico" };
+
+    const fxTasa = p => (fxInvertido ? 1 / p.rate : p.rate);
+    const fxUnidad = () => (fxInvertido ? "EUR por 1 USD" : "USD por 1 EUR");
+    const fxNumero = v => v.toFixed(4).replace(".", ",");
+
+    function fxTextoFrase(pct) {
+        // El signo se lee sobre lo que se muestra: si la cotización va en euros
+        // por dólar y sube, quien se revaloriza es el dólar, no el euro.
+        // "frente al", con la contracción: "frente a el dólar" no es español.
+        const [suben, frente] = fxInvertido ? ["dólar", "euro"] : ["euro", "dólar"];
+        let verbo = "se mantiene";
+        if (Math.abs(pct) >= 0.005) verbo = pct > 0 ? "se revaloriza" : "se deprecia";
+        const frase = "el " + suben + " " + verbo + " frente al " + frente;
+        return frase.charAt(0).toUpperCase() + frase.slice(1);
+    }
+
     function renderEURUSD() {
         if (fxChart) fxChart.destroy();
-        const cutDays = fxRange;
         let filtered = window.fxPoints;
-        if (cutDays > 0) {
-            const cut = new Date(Date.now() - cutDays * 864e5).toISOString().slice(0, 10);
-            filtered = window.fxPoints.filter(p => p.fecha >= cut);
+        if (fxRange > 0) {
+            const cut = new Date(Date.now() - fxRange * 864e5).toISOString().slice(0, 10);
+            const recortada = window.fxPoints.filter(p => p.fecha >= cut);
+            // Con rangos cortos puede quedar un solo punto y no habría variación
+            // que medir: se coge el cierre anterior para tener con qué comparar.
+            const desde = window.fxPoints.length - recortada.length;
+            filtered = window.fxPoints.slice(Math.max(0, desde - 1));
         }
+
+        // Cabecera: el valor de ahora y cuánto se ha movido EN EL RANGO elegido.
+        // Antes el porcentaje era siempre el del día, dijera lo que dijera el
+        // botón que estuviera pulsado.
+        const ultimo = filtered[filtered.length - 1];
+        const primero = filtered[0];
+        const rate = document.getElementById("fx-rate");
+        if (rate && ultimo) {
+            rate.innerHTML = fxNumero(fxTasa(ultimo)) + ' <small class="subtle">' + fxUnidad() + "</small>";
+        }
+        const cambio = document.getElementById("fx-cambio");
+        if (cambio && primero && ultimo && primero !== ultimo) {
+            const pct = 100 * (fxTasa(ultimo) - fxTasa(primero)) / fxTasa(primero);
+            cambio.textContent = (pct >= 0 ? "+" : "") + pct.toFixed(2).replace(".", ",") + "% " + (FX_ETIQUETAS[fxRange] || "");
+            cambio.className = pct >= 0 ? "positive" : "negative";
+            const frase = document.getElementById("fx-frase");
+            if (frase) frase.textContent = fxTextoFrase(pct);
+        }
+
         fxChart = new Chart(document.getElementById("chart-eurusd"), {
             type: "line",
             data: {
                 labels: filtered.map(p => p.fecha),
                 datasets: [{
-                    label: "EUR/USD",
-                    data: filtered.map(p => p.rate),
+                    label: fxInvertido ? "USD/EUR" : "EUR/USD",
+                    data: filtered.map(fxTasa),
                     borderColor: "#f5b95f", fill: false, tension: .25, pointRadius: 0, borderWidth: 2,
                 }]
             },
-            options: { plugins: { legend: { display: false } } }
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: c => fxNumero(c.parsed.y) + " " + fxUnidad() } },
+                },
+                scales: { y: { ticks: { callback: v => fxNumero(v) } } },
+            }
         });
     }
+
+    const btnInvertir = document.getElementById("fx-invertir");
+    if (btnInvertir) btnInvertir.addEventListener("click", () => {
+        fxInvertido = !fxInvertido;
+        localStorage.setItem("dash.fx.invertido", fxInvertido ? "1" : "0");
+        renderEURUSD();
+    });
 
     const fxChips = document.querySelectorAll("#fx-range-chips button");
     const markFXActive = () => fxChips.forEach(b => b.classList.toggle("active", parseInt(b.dataset.days, 10) === fxRange));
