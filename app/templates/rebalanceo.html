@@ -65,7 +65,7 @@
                 {% for f in detalle.filas %}
                 <tr>
                     <td data-col="Activo">
-                        {% if f.asset %}<span class="celda-activo">{{ avatar(f.asset, 24) }}<strong>{{ f.asset.name }}</strong></span>
+                        {% if f.asset %}<span class="celda-activo" title="{{ f.asset.name }}">{{ avatar(f.asset, 24) }}<strong>{{ f.asset.name }}</strong></span>
                         {% else %}<span class="subtle">Activo eliminado</span>{% endif %}
                     </td>
                     <td class="num" data-col="Objetivo">{{ "%g"|format(f.objetivo_pct) }}%</td>
@@ -114,7 +114,7 @@
                 {% for r in reparto %}
                 <tr>
                     <td data-col="Activo">
-                        {% if r.asset %}<span class="celda-activo">{{ avatar(r.asset, 24) }}<strong>{{ r.asset.name }}</strong></span>{% endif %}
+                        {% if r.asset %}<span class="celda-activo" title="{{ r.asset.name }}">{{ avatar(r.asset, 24) }}<strong>{{ r.asset.name }}</strong></span>{% endif %}
                     </td>
                     <td class="num" data-col="Comprar"><strong>{{ r.importe|dinero }} {{ base_currency }}</strong></td>
                     <td class="num" data-col="% de la aportación">{{ "%g"|format(r.pct_de_la_aportacion) }}%</td>

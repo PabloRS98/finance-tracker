@@ -156,7 +156,9 @@
                     {% else %}<strong>{{ row.mensual|dinero }}</strong>{% endif %}
                 </td>
                 <td>{{ r.category.name if r.category else "-" }}</td>
-                <td>día {{ r.day_of_month }}</td>
+                {# Espacio duro: la columna es estrecha y "día 10" se partía en dos líneas,
+                   dejando esa fila 13px más alta que las demás. #}
+                <td>día&nbsp;{{ r.day_of_month }}</td>
                 <td class="subtle">{{ row.next_due.strftime("%d/%m/%Y") if row.next_due else "-" }}</td>
                 <td>
                     {% if r.active %}<span class="tag positive">activa</span>

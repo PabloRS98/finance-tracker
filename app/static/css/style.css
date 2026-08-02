@@ -89,7 +89,15 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    padding: .65rem 1.5rem;
+    /* Áreas seguras: con viewport-fit=cover la página ocupa TODA la pantalla,
+       incluida la franja del notch. En el navegador lo tapa la barra de
+       direcciones, pero instalada como PWA la barra superior se metía debajo
+       del recorte, y en horizontal los botones quedaban bajo el redondeo. */
+    padding:
+        calc(.65rem + env(safe-area-inset-top))
+        calc(1.5rem + env(safe-area-inset-right))
+        .65rem
+        calc(1.5rem + env(safe-area-inset-left));
     background: color-mix(in srgb, var(--bg) 78%, transparent);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -127,7 +135,7 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
 .container {
     max-width: 1150px;
     margin: 0 auto;
-    padding: 1.5rem;
+    padding: 1.5rem calc(1.5rem + env(safe-area-inset-right)) 1.5rem calc(1.5rem + env(safe-area-inset-left));
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
@@ -154,6 +162,36 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
 
 .grid-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 1rem; }
 .grid-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 1.25rem; }
+
+/* Las tarjetas abiertas de una misma fila se igualan en alto. Antes cada una
+   media lo que pedía su contenido y "Patrimonio por tipo de activo" quedaba
+   ochenta píxeles más baja que "Mapa de la cartera", con el hueco a la vista.
+
+   Solo las abiertas: estirar una sección plegada hasta el alto de la fila
+   dejaría una cabecera de 60px dentro de una caja de 400. Por eso no vale con
+   `align-items: stretch` en la rejilla. */
+.grid-charts > details[open] {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+}
+/* Y lo que sobra se lo lleva la gráfica, no un hueco al final de la tarjeta.
+
+   El crecimiento hay que dárselo primero a ::details-content: el navegador
+   envuelve ahí lo que va tras el <summary>, así que el hijo flex del <details>
+   es esa caja y no la gráfica. Sin este paso el flex-grow de abajo no tenía
+   efecto y quedaban cien píxeles muertos al fondo de la tarjeta.
+
+   Donde no exista el pseudoelemento simplemente no crece: las tarjetas siguen
+   igualadas, que es lo que se venía a arreglar. */
+.grid-charts > details[open]::details-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.grid-charts > details[open] > .chart-box,
+.grid-charts > details[open] > .heatmap { flex: 1 1 auto; }
 
 /* Tarjeta de estadística */
 .stat { display: flex; flex-direction: column; gap: .35rem; }
@@ -198,7 +236,9 @@ code { background: var(--bg-soft); border: 1px solid var(--border); border-radiu
 
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 
-th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--border); font-size: var(--t-cuerpo); }
+/* vertical-align medio: con avatares, etiquetas y texto conviviendo en la misma
+   fila, la línea base dejaba cada cosa a una altura distinta. */
+th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--border); font-size: var(--t-cuerpo); vertical-align: middle; }
 th { color: var(--text-3); font-weight: var(--p-medio); font-size: var(--t-apoyo); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
 tbody tr:hover { background: color-mix(in srgb, var(--card-2) 60%, transparent); }
 tbody tr:last-child td { border-bottom: none; }
@@ -574,9 +614,22 @@ details.collapsible.card { margin-bottom: 1.25rem; }
 /* ---------- Móvil ---------- */
 @media (max-width: 720px) {
     body { font-size: 14.5px; }
-    .container { padding: 1rem .9rem calc(4.9rem + env(safe-area-inset-bottom)); gap: 1rem; }
+    .container {
+        padding:
+            1rem
+            calc(.9rem + env(safe-area-inset-right))
+            calc(4.9rem + env(safe-area-inset-bottom))
+            calc(.9rem + env(safe-area-inset-left));
+        gap: 1rem;
+    }
     .card { padding: .95rem 1rem; }
-    .topbar { padding: .6rem 1rem; }
+    .topbar {
+        padding:
+            calc(.6rem + env(safe-area-inset-top))
+            calc(1rem + env(safe-area-inset-right))
+            .6rem
+            calc(1rem + env(safe-area-inset-left));
+    }
 
     /* La navegación pasa a barra inferior fija estilo app */
     .nav-links {
@@ -591,7 +644,11 @@ details.collapsible.card { margin-bottom: 1.25rem; }
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
         border-top: 1px solid var(--border);
-        padding: .4rem .5rem calc(.4rem + env(safe-area-inset-bottom));
+        padding:
+            .4rem
+            calc(.5rem + env(safe-area-inset-right))
+            calc(.4rem + env(safe-area-inset-bottom))
+            calc(.5rem + env(safe-area-inset-left));
     }
     .nav-links a { flex-direction: column; gap: .18rem; font-size: var(--t-etiqueta); padding: .3rem .55rem; flex: 1; }
     .nav-links a .icon { width: 21px; height: 21px; }
@@ -659,6 +716,10 @@ details.collapsible.card { margin-bottom: 1.25rem; }
 /* ---------- Mapa de la cartera (treemap) ---------- */
 /* Altura fija como las gráficas: el algoritmo necesita un alto concreto para
    repartir, y con altura automática el contenedor nace a 0 y no pinta nada. */
+/* Cabecera de la tarjeta Euro/Dólar: valor, botón de invertir, variación y frase. */
+.fx-cabecera { margin: .2rem 0 .6rem; display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.fx-cabecera #fx-rate { font-size: var(--t-titulo); font-variant-numeric: tabular-nums; }
+
 .heatmap { position: relative; width: 100%; height: 260px; }
 
 .heatmap-cell {
@@ -769,7 +830,7 @@ a.heatmap-cell:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
         align-items: flex-end;
         gap: .5rem;
         position: fixed;
-        right: 1rem;
+        right: calc(1rem + env(safe-area-inset-right));
         /* Por encima de la barra inferior, respetando el área segura del iPhone */
         bottom: calc(4.6rem + env(safe-area-inset-bottom));
         z-index: 70;
@@ -959,7 +1020,22 @@ a.heatmap-cell:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
 
 /* Con el modo privacidad activo el avatar se mantiene: no es una cifra, y es
    justo lo que permite seguir reconociendo la fila con los importes tapados. */
-.celda-activo { display: inline-flex; align-items: center; gap: .5rem; }
+.celda-activo { display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; }
+
+/* Los nombres largos de fondo —del tipo "Índice Mundial de Mercados P EUR Acc"— partían
+   la fila en cuatro líneas, y en un historial de cincuenta operaciones las
+   alturas iban de 48 a 102px: la tabla se leía como un serrucho. Se recortan
+   con elipsis y el nombre completo queda en el title y en su ficha. */
+table .celda-activo { max-width: 24ch; }
+table .celda-activo > strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+/* Las etiquetas (cuenta, tipo) tampoco deben partirse: "Trade Republic" en dos
+   líneas engorda la fila sin aportar nada. */
+.tag { white-space: nowrap; }
 /* El avatar va como hermano del nombre, no dentro: .holding-name es una
    columna (nombre sobre ticker) y ahí dentro el avatar quedaba encima. */
 .holding-main > .avatar-activo { margin-right: .1rem; }

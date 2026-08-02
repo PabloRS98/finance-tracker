@@ -14,9 +14,9 @@ TR_CSV = """Fecha;Tipo;Valor;Nota;ISIN;Cantidad;Comisión
 
 # Export con el ISIN en la columna "symbol" (no "isin") y tipos verbosos
 TR_SYMBOL_CSV = """date,type,name,symbol,shares,price,amount,fee,currency
-2026-01-20,BUY,Fondo Global USD (Acc),IE00B4L5Y983,2,100,-200,-1,EUR
+2026-01-20,BUY,Fondo Global USD (Acc),IE00EJEMPLO2,2,100,-200,-1,EUR
 2026-01-21,CUSTOMER_INPAYMENT,,,,,100,,EUR
-2026-01-22,DIVIDEND,Fondo Global USD (Acc),IE00B4L5Y983,,,0.5,,EUR
+2026-01-22,DIVIDEND,Fondo Global USD (Acc),IE00EJEMPLO2,,,0.5,,EUR
 """
 
 REVOLUT_CSV = """Date,Ticker,Type,Quantity,Price per share,Total Amount,Currency,FX Rate
@@ -54,14 +54,14 @@ def test_trade_republic_lee_isin_de_columna_symbol():
     result = trade_republic.parse(TR_SYMBOL_CSV)
     assert len(result.rows) == 1  # solo el BUY; inpayment y dividendo se omiten
     compra = result.rows[0]
-    assert (compra.type, compra.isin, compra.error) == ("compra", "IE00B4L5Y983", None)
+    assert (compra.type, compra.isin, compra.error) == ("compra", "IE00EJEMPLO2", None)
     assert compra.name == "Fondo Global USD (Acc)"
     assert compra.unit_price == pytest.approx(100)
     assert sum(result.skipped.values()) == 2
 
 
 def test_looks_like_isin():
-    assert looks_like_isin("IE00B4L5Y983")
+    assert looks_like_isin("IE00EJEMPLO2")
     assert looks_like_isin("us0378331005")  # normaliza mayúsculas
     assert not looks_like_isin("AAPL")
     assert not looks_like_isin("")
