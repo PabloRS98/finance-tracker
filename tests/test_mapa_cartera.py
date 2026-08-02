@@ -111,3 +111,30 @@ def test_sin_posiciones_no_se_ofrece_ampliar_nada(client):
 
     assert 'id="dlg-mapa"' not in html
     assert "Sin posiciones que mapear" in html
+
+
+# ---------- El diálogo tiene que estar cerrado hasta que se abra ----------
+
+def test_el_dialogo_no_se_pinta_solo():
+    """Un <dialog> cerrado se oculta porque el navegador le pone display:none.
+    Declarar `display: flex` a secas lo pisa y lo deja visible siempre: el mapa
+    salía incrustado en la portada, sin haberse abierto y sin forma de cerrarlo,
+    porque el botón de cerrar solo funciona sobre un diálogo abierto.
+
+    Solo puede fijarse el display cuando el sujeto del selector es el propio
+    diálogo Y lleva [open]. Sobre un descendiente (`dialog h3`) no hay problema.
+    """
+    from pathlib import Path
+
+    css = Path("app/static/css/style.css").read_text(encoding="utf-8")
+    for bloque in re.findall(r"([^{}]*\{[^{}]*\})", css):
+        selector, cuerpo = bloque.split("{", 1)
+        if "display:" not in cuerpo:
+            continue
+        for parte in selector.split(","):
+            sujeto = parte.strip().split()[-1] if parte.strip() else ""
+            if not sujeto.startswith("dialog") or "::" in sujeto:
+                continue
+            assert "[open]" in sujeto, (
+                "%s fija el display sin [open]: el diálogo se vería estando cerrado" % sujeto
+            )

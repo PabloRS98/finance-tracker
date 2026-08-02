@@ -693,9 +693,13 @@ dialog.dlg-ancho {
        contenido no tiene espacio libre que repartir, y el mapa se quedaba con
        los mismos 260px de la portada en vez de crecer. */
     height: min(92vh, 900px);
-    display: flex;
     flex-direction: column;
 }
+/* El display SOLO cuando está abierto. Un <dialog> cerrado se oculta porque el
+   navegador le pone display:none, así que declarar `display: flex` a secas lo
+   deja visible siempre: el mapa salía incrustado en la portada y sin forma de
+   cerrarlo, porque nunca había llegado a abrirse. */
+dialog.dlg-ancho[open] { display: flex; }
 dialog.dlg-ancho > h3, dialog.dlg-ancho > .hint, dialog.dlg-ancho > .dialog-actions { flex: none; }
 .heatmap-grande { flex: 1 1 auto; min-height: 220px; }
 .heatmap-grande .heatmap-cell { padding: .45rem .55rem; }
