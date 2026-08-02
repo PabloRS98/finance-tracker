@@ -9,7 +9,9 @@ from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptInt
 from ..models import Category, Currency, RecurringTransaction, TransactionType
-from ..services.recurring import FREQUENCIES, generate_due_transactions, next_due_date
+from ..services.recurring import (
+    FREQUENCIES, coste_mensual, generate_due_transactions, next_due_date, resumen_mensual,
+)
 from ..templating import templates
 
 router = APIRouter(prefix="/recurrentes", tags=["recurrentes"], dependencies=[Depends(verify_auth)])
@@ -19,10 +21,24 @@ router = APIRouter(prefix="/recurrentes", tags=["recurrentes"], dependencies=[De
 def list_recurring(request: Request, db: Session = Depends(get_db)):
     rules = db.query(RecurringTransaction).order_by(RecurringTransaction.name).all()
     today = date.today()
-    rows = [{"rule": r, "next_due": next_due_date(r, today) if r.active else None} for r in rules]
+    # Ordenadas por lo que pesan al mes: es el orden en el que se mira una lista
+    # de gastos fijos, y el importe del cargo no dice cuál sale más caro (un
+    # anual de 120 pesa menos que un mensual de 15).
+    rows = sorted(
+        (
+            {
+                "rule": r,
+                "next_due": next_due_date(r, today) if r.active else None,
+                "mensual": coste_mensual(r),
+            }
+            for r in rules
+        ),
+        key=lambda f: (not f["rule"].active, -f["mensual"]),
+    )
     categories = db.query(Category).order_by(Category.name).all()
     return templates.TemplateResponse(request, "recurring.html", {
             "rows": rows,
+            "resumen": resumen_mensual(db),
             "categories": categories,
             "tx_types": list(TransactionType),
             "currencies": list(Currency),

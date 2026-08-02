@@ -57,6 +57,72 @@
     </p>
 </section>
 
+{% if rows %}
+{# Lo que de verdad se quiere saber de unos gastos fijos: cuánto se va al mes.
+   Un recibo trimestral de 300 no son 300 al mes, son 100, y hasta ahora había
+   que hacer esa cuenta de cabeza para cada regla. #}
+<section class="hero-grid">
+    <div class="card stat hero-card">
+        <span class="stat-head">{{ icon("repeat", 16) }} Gasto recurrente al mes</span>
+        <p class="big-number hero-number negative">
+            <span data-money="{{ resumen.gastos }}" data-cur="{{ resumen.base_currency }}">{{ resumen.gastos|dinero }} <small>{{ resumen.base_currency }}</small></span>
+        </p>
+        <p class="day-change subtle">
+            {{ resumen.gastos_anuales|dinero }} {{ resumen.base_currency }} al año
+        </p>
+        {% if resumen.sin_cambio %}
+        <p class="day-change negative" title="Sin tipo de cambio no se puede sumar: contarlo 1:1 falsearía el total">
+            {{ icon("triangle-alert", 14) }} Total parcial · falta cambio para {{ resumen.sin_cambio|join(", ") }}
+        </p>
+        {% endif %}
+        {% if resumen.pausadas %}
+        <p class="day-change subtle">
+            {{ resumen.pausadas }} pausada{{ "s" if resumen.pausadas != 1 }}, fuera del total
+        </p>
+        {% endif %}
+    </div>
+    <div class="hero-side">
+        <div class="card stat positive">
+            <span class="stat-head">{{ icon("banknote", 16) }} Ingreso recurrente al mes</span>
+            <p class="big-number positive">
+                <span data-money="{{ resumen.ingresos }}" data-cur="{{ resumen.base_currency }}">{{ resumen.ingresos|dinero }} <small>{{ resumen.base_currency }}</small></span>
+            </p>
+        </div>
+        <div class="card stat {{ 'positive' if resumen.neto >= 0 else 'negative' }}">
+            <span class="stat-head">{{ icon("scale", 16) }} Queda al mes</span>
+            <p class="big-number {{ 'positive' if resumen.neto >= 0 else 'negative' }}">
+                <span data-money="{{ resumen.neto }}" data-cur="{{ resumen.base_currency }}">{{ resumen.neto|dinero }} <small>{{ resumen.base_currency }}</small></span>
+            </p>
+            <span class="subtle">Ingresos menos gastos, solo de lo recurrente</span>
+        </div>
+    </div>
+</section>
+
+{% if resumen.por_categoria %}
+<section class="card">
+    <h3>{{ icon("tags") }} En qué se va cada mes</h3>
+    <div class="table-wrap">
+        <table class="apilable">
+            <thead><tr><th>CATEGORÍA</th><th class="num">AL MES</th><th class="num">PESO</th></tr></thead>
+            <tbody>
+                {% for nombre, importe in resumen.por_categoria %}
+                <tr>
+                    <td data-col="Categoría">{{ nombre }}</td>
+                    <td class="num" data-col="Al mes">
+                        <strong data-money="{{ importe }}" data-cur="{{ resumen.base_currency }}">{{ importe|dinero }} <small class="subtle">{{ resumen.base_currency }}</small></strong>
+                    </td>
+                    <td class="num" data-col="Peso">
+                        {{ "%.1f"|format(100 * importe / resumen.gastos) if resumen.gastos else "-" }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+{% endif %}
+
 <section class="card">
     <h3>{{ icon("repeat") }} Mis recurrentes
         {% if rows %}<span class="tag accent">{{ rows|length }}</span>{% endif %}
@@ -71,7 +137,7 @@
     <div class="table-wrap">
     <table>
         <thead>
-            <tr><th>Nombre</th><th>Tipo</th><th class="num">Importe</th><th>Frecuencia</th><th>Categoría</th><th>Día</th><th>Próxima</th><th>Estado</th><th></th></tr>
+            <tr><th>Nombre</th><th>Tipo</th><th class="num">Importe</th><th>Frecuencia</th><th class="num">Al mes</th><th>Categoría</th><th>Día</th><th>Próxima</th><th>Estado</th><th></th></tr>
         </thead>
         <tbody>
         {% for row in rows %}{% set r = row.rule %}
@@ -83,6 +149,12 @@
                 </td>
                 <td class="num">{{ r.amount|dinero }} {{ "€" if r.currency.value == "EUR" else ("$" if r.currency.value == "USD" else r.currency.value) }}</td>
                 <td>{{ frequencies.get(r.interval_months, "Mensual") }}</td>
+                {# Lo que pesa al mes: es lo que permite comparar un anual con
+                   un mensual sin hacer la división de cabeza. #}
+                <td class="num" title="{{ r.amount|dinero }} cada {{ r.interval_months }} mes{{ 'es' if r.interval_months != 1 }}">
+                    {% if r.interval_months == 1 %}<span class="subtle">{{ row.mensual|dinero }}</span>
+                    {% else %}<strong>{{ row.mensual|dinero }}</strong>{% endif %}
+                </td>
                 <td>{{ r.category.name if r.category else "-" }}</td>
                 <td>día {{ r.day_of_month }}</td>
                 <td class="subtle">{{ row.next_due.strftime("%d/%m/%Y") if row.next_due else "-" }}</td>
