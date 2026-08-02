@@ -11,6 +11,75 @@ lo que no se deduce leyendo el diff.
 
 ---
 
+## 1.0.0 — 2026-08-02
+
+Primera versión estable. La app lleva tiempo en uso diario contra datos reales;
+lo que marca el 1.0 no es una funcionalidad nueva sino que el conjunto está
+cerrado: el roadmap no tiene nada pendiente, el despliegue se prueba solo en
+cada cambio y lo que se decidió **no** hacer está escrito con su motivo en
+[ROADMAP.md](ROADMAP.md).
+
+Todo lo de abajo entra en esta versión.
+
+### Coste mensual de las recurrentes
+
+Un recibo trimestral de 300 aparecía en la lista como un gasto de 300 y competía
+visualmente con el alquiler, cuando pesa 100 al mes. Con periodicidades
+mezcladas, saber cuánto se va en fijos exigía una división por regla.
+
+Cada regla lleva ahora su coste mensual, y arriba va el total —gasto, ingreso y
+lo que queda— con el desglose por categoría ordenado de mayor a menor, que es el
+orden en el que se busca dónde recortar.
+
+Los totales suman los importes **ya redondeados** de cada regla, los mismos que
+se ven en la lista: sumar los exactos y redondear al final sería más preciso,
+pero dejaría un total que no cuadra con la columna que se tiene delante. Solo
+cuentan las activas, y las reglas sin tipo de cambio se excluyen y se nombran.
+
+### El mapa de la cartera se amplía
+
+En la portada mide 260px de alto, y a ese tamaño solo se rotulan las piezas
+grandes: el resto quedaba en el tooltip, que en el móvil no existe. Se pulsa y
+abre a seis veces esa superficie, con nombre completo, peso y variación, y cada
+pieza enlaza a la ficha de su activo.
+
+Los umbrales para escribir en una pieza van bajos a propósito: se intenta
+rotular casi todas y luego se retira lo que no cupo. Medir el recorte después es
+más fiable que adivinarlo antes con un ancho fijo. Aun así una astilla del 0,3%
+no admite rótulo, de ahí la lista completa de debajo, que es además la
+alternativa en texto de un gráfico que se lee por color.
+
+### Áreas seguras, tarjetas igualadas y tablas ordenadas
+
+Con `viewport-fit=cover` la página ocupa toda la pantalla y solo se contemplaba
+el borde inferior: en PWA la barra superior se metía bajo el notch y en
+horizontal los extremos de la barra inferior perdían media zona táctil. Ahora se
+respetan los cuatro lados.
+
+Las tarjetas abiertas de una misma fila del dashboard se igualan en alto —las
+plegadas no, que estirar una sección cerrada dejaría una cabecera dentro de una
+caja vacía— y el sobrante se lo lleva la gráfica. Eso último hay que dárselo a
+`::details-content`: el navegador envuelve ahí lo que sigue al `<summary>`, así
+que el hijo flex del `<details>` es esa caja y no la gráfica.
+
+En las tablas, un nombre de fondo largo partía la fila en cuatro líneas y las
+alturas iban de 48 a 102px. Se recorta con elipsis y el nombre completo queda en
+el `title`.
+
+### La cotización Euro/Dólar se puede invertir
+
+Y la frase cambia con ella: si va en euros por dólar y sube, quien se revaloriza
+es el dólar. El porcentaje pasa además a seguir el rango elegido —antes era
+siempre el del día dijera lo que dijera el botón pulsado, lo que hacía inútil
+cambiar de rango—.
+
+### Licencia y avisos de terceros
+
+MIT. El repositorio incluye Chart.js y los iconos de Lucide (MIT) y la fuente
+Inter (SIL Open Font License), vendorizados para funcionar sin build step ni
+CDN. De la fuente no había ninguna mención y la OFL exige distribuir su aviso
+junto al fichero: estaba incumplido sin querer.
+
 ### La barra superior ya no arrastra la página a scroll horizontal
 
 `.topbar` es un flex sin `wrap` y sus hijos no encogen, así que con las siete
@@ -80,7 +149,7 @@ distinguía entre lo que tienes y lo que tuviste.
 
 ### Documentar que un traspaso de bróker no es un duplicado
 
-`PROPUESTAS-v4.md` planteaba "elegir con qué divisa quedarse" para consolidar dos
+El documento de roadmap planteaba "elegir con qué divisa quedarse" para consolidar dos
 activos que el detector marcaba como repetidos. Era una lectura equivocada del
 dato: invitaba a fusionar dos posiciones distintas o a borrar operaciones reales.
 Se añade también la sección "Datos reales" del README — el repositorio es
