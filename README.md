@@ -1,10 +1,17 @@
 # finance-tracker
 
-Tracker de patrimonio e ingresos/gastos personales. Local-first, mono-usuario y
-sin APIs de pago: los precios salen de fuentes públicas gratuitas y todo vive en
-un único SQLite dentro de un volumen Docker.
+**Versión 1.0** · Tracker de patrimonio e ingresos/gastos personales.
+Local-first, mono-usuario y sin APIs de pago: los precios salen de fuentes
+públicas gratuitas y todo vive en un único SQLite dentro de un volumen Docker.
 
 **Stack**: FastAPI · SQLAlchemy 2.0 · SQLite · Jinja2 · Chart.js (vendorizado, sin build step).
+
+| Documento | Para qué |
+|---|---|
+| Este README | Instalar, configurar y usar |
+| [CHANGELOG.md](CHANGELOG.md) | Qué cambió y **por qué** |
+| [ROADMAP.md](ROADMAP.md) | Qué se dejó fuera a propósito y qué deuda se asume |
+| [ARQUITECTURA.md](ARQUITECTURA.md) | Las decisiones de ingeniería y los fallos que las provocaron |
 
 ## Qué hace
 
@@ -65,6 +72,28 @@ cp .env.example .env
 echo "DB_PATH=./finance.db" >> .env        # fuera de Docker no existe /data
 uvicorn app.main:app --reload
 ```
+
+### Actualizar
+
+```bash
+git pull && docker compose up -d --build
+```
+
+No hay pasos manuales. El entrypoint aplica las migraciones pendientes antes de
+arrancar, y una base creada por una versión anterior a Alembic se detecta y se
+pone al día sola. Si una migración falla, el arranque se corta en vez de dejar
+la app sirviendo contra un esquema viejo.
+
+Para comprobar que ha ido bien:
+
+```bash
+docker compose ps          # debe decir healthy, no solo "running"
+curl -s localhost:8001/salud
+```
+
+`/salud` consulta la base de verdad: si devuelve `503` con `esquema
+desactualizado` o `consulta de prueba fallida`, la app está arrancada pero no
+puede servir páginas, y el detalle está en `docker compose logs`.
 
 ## Configuración
 
@@ -141,13 +170,35 @@ pytest -q
 ```
 
 Los tests no tocan la red ni el volumen `/data`: las APIs externas van
-parcheadas y la base de datos es SQLite en memoria. Hay dos niveles:
+parcheadas y la base de datos es SQLite en memoria. Hay tres niveles:
 
-- `tests/test_*.py` (servicios): cálculo de posiciones, histórico, recurrentes,
-  parser de voz, importadores, clasificación.
-- `tests/test_endpoints.py`: HTTP contra la app real — que cada página responda,
-  que la autenticación cubra todas las rutas y que ningún dato guardado pueda
-  romper el HTML.
+- **Servicios** (`tests/test_*.py`): cálculo de posiciones, histórico,
+  recurrentes, parser de voz, importadores, clasificación, rendimiento.
+- **HTTP contra la app real** (`tests/test_endpoints.py` y compañía): que cada
+  página responda, que la autenticación cubra todas las rutas y que ningún dato
+  guardado pueda romper el HTML.
+- **Sistema visual** (`tests/test_sistema_visual.py`): que los planos de
+  profundidad sigan separándose, que no aparezca un `font-size` suelto en el
+  CSS, que un diálogo no se pinte estando cerrado. No comprueban que sea bonito
+  —eso no se testea— sino que las decisiones que lo sostienen no se deshagan por
+  descuido.
+
+### Integración continua
+
+Dos workflows, tres checks:
+
+| Check | Qué hace |
+|---|---|
+| `pytest` | La suite completa |
+| `auditoria` | `pip-audit` sobre las dependencias declaradas |
+| `contenedor` | Construye la imagen y la levanta |
+
+El último es el que más ha valido la pena: los dos incidentes graves del
+proyecto no estaban en el código sino en el despliegue, así que ese job levanta
+el contenedor contra un volumen vacío, contra una base anterior a Alembic y
+contra un `/data` en manos de root, exigiendo contenedor sano, las once rutas en
+200 y la app corriendo sin privilegios. El porqué, en
+[ARQUITECTURA.md](ARQUITECTURA.md).
 
 ### Migraciones
 
