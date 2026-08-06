@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
 
 from .auth import verify_auth
+from .config import settings
 from .csrf import issue_token, set_cookie, verify_csrf
 from .database import get_db, revision_pendiente, SessionLocal
 from .models import Asset, Category
@@ -70,9 +71,27 @@ def comprobar_esquema() -> None:
     )
 
 
+def avisar_si_no_hay_autenticacion() -> None:
+    """Deja constancia en el log cuando la app queda sin pedir credenciales.
+
+    Sin autenticación no hay nada en la interfaz que lo indique: la app se ve
+    exactamente igual, así que el estado inseguro es invisible salvo que uno
+    vaya a mirar el `.env`. El log del arranque es el único sitio donde se
+    mira cuando algo va mal, y es donde tiene que constar.
+    """
+    if settings.enable_auth:
+        return
+    logger.warning(
+        "ENABLE_AUTH está desactivado: cualquiera que alcance el puerto ve y edita "
+        "el patrimonio sin credenciales. Es lo correcto solo si el puerto no sale "
+        "de esta máquina (FINANCE_BIND=127.0.0.1, el valor por defecto)."
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("lifespan: arrancando")
+    avisar_si_no_hay_autenticacion()
     comprobar_esquema()
     seed_categories()
     try:

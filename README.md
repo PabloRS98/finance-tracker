@@ -58,6 +58,11 @@ La app queda en <http://localhost:8001> (cámbialo con `FINANCE_PORT`). El volum
 `finance-tracker_data` guarda la base de datos y los backups diarios: es lo único
 que hay que respaldar.
 
+El puerto se publica **solo en loopback**: desde otra máquina no se alcanza. Para
+usarla desde el móvil en la LAN hay que decidirlo, poniendo `FINANCE_BIND=0.0.0.0`
+en el `.env` — y entonces `ENABLE_AUTH=true` con una contraseña de verdad, porque
+lo que hay al otro lado es el patrimonio entero.
+
 El contenedor arranca como root solo el tiempo justo de que el entrypoint ajuste
 la propiedad de `/data` —un volumen que ya existe conserva la suya, y el `chown`
 del build no le llega— y acto seguido baja a un usuario sin privilegios. La app
@@ -105,8 +110,9 @@ Lo que conviene revisar antes de exponer la app:
 
 | Variable | Por qué importa |
 |---|---|
+| `FINANCE_BIND` | Interfaz donde se publica el puerto. `127.0.0.1` por defecto; `0.0.0.0` la abre a toda la LAN. |
 | `ENABLE_AUTH` | Desactivada por defecto. **Actívala** si la app sale de localhost, aunque sea por VPN. |
-| `AUTH_PASSWORD` | El default es `changeme`. |
+| `AUTH_PASSWORD` | El default es `changeme`, y con `ENABLE_AUTH=true` la app **no arranca** con él ni con menos de 8 caracteres. |
 | `DB_PATH` | Debe apuntar a un volumen persistente. |
 | `BASE_CURRENCY` | Moneda de todos los totales. Cambiarla con datos ya cargados no reconvierte lo existente. |
 

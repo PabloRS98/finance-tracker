@@ -80,9 +80,13 @@ mono-usuario, así que en la práctica no ocurre.
 filtrar por un activo extranjero, el resumen no trae la descomposición de divisa
 que sí sale en la ficha. Inconsistencia menor, no un dato erróneo.
 
-**Auth desactivada por defecto con el puerto en `0.0.0.0`.** Deliberado: la app
-se usa desde el móvil en la LAN. Si sale de casa, activar `ENABLE_AUTH` y
-ponerla tras un proxy con TLS o una VPN. Avisado en el README.
+**Auth desactivada por defecto.** Deliberado: la app se usa desde el móvil en la
+LAN y activar la autenticación de serie dejaría fuera a las instalaciones
+existentes al primer redespliegue. Lo que sí cambió (auditoría, [FT-C1]) es que
+esa decisión ya no viene acompañada de un puerto abierto: el binding es
+`127.0.0.1` por defecto y exponerlo es un acto explícito (`FINANCE_BIND`), con
+un validador que impide arrancar con la contraseña de fábrica y un aviso en el
+log cuando la app queda sin credenciales.
 
 **Modo claro.** Toda la paleta está pensada en oscuro. Derivarla obliga a
 revisar además las cuatro gráficas y el mapa de cartera, y duplica la superficie
