@@ -8,6 +8,7 @@ import logging
 import httpx
 
 from ..config import settings
+from ._logging_utils import log_fallo_api
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,10 @@ def _api(method: str, http_timeout: float = 15, **payload):
         )
         resp.raise_for_status()
         return resp.json().get("result")
-    except Exception:
-        logger.exception("Fallo en Telegram.%s", method)
+    except Exception as exc:
+        # Sin traza: el token va en la URL y el mensaje de HTTPStatusError la
+        # incluye entera. Ver _logging_utils.
+        log_fallo_api(logger, "Fallo en Telegram.%s", method, exc=exc)
         return None
 
 
@@ -85,6 +88,7 @@ def download_file(file_id: str) -> bytes | None:
         )
         resp.raise_for_status()
         return resp.content
-    except Exception:
-        logger.exception("Fallo al descargar archivo de Telegram %s", file_id)
+    except Exception as exc:
+        # FILE_URL también lleva el token en la ruta.
+        log_fallo_api(logger, "Fallo al descargar archivo de Telegram %s", file_id, exc=exc)
         return None
