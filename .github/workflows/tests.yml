@@ -41,13 +41,17 @@ jobs:
         # pesan mucho: los tests que los tocan los parchean, así que fuera del CI.
         run: |
           grep -v -E '^(faster-whisper|pymupdf)' requirements.txt > ci-requirements.txt
-          pip install -r ci-requirements.txt pytest
+          pip install -r ci-requirements.txt pytest pytest-cov
 
       - name: Tests
         # DB_PATH fuera de /data: el runner no tiene el volumen del contenedor
+        #
+        # El umbral es el valor medido, no un objetivo: existe para que la
+        # cobertura no se erosione sin que nadie lo note, que es lo que pasa
+        # cuando se mide y no se fija. Cuando suba, sube con ella.
         env:
           DB_PATH: ${{ runner.temp }}/finance-ci.db
-        run: pytest -q
+        run: pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-fail-under=74
 
   auditoria:
     # Corre aparte de los tests: que una dependencia tenga un CVE no significa

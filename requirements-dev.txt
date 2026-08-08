@@ -6,3 +6,4 @@
 # vez de por un cambio del código.
 ruff==0.14.7
 pytest==9.1.1
+pytest-cov==6.0.0

@@ -195,9 +195,17 @@ Dos workflows, tres checks:
 
 | Check | Qué hace |
 |---|---|
-| `pytest` | La suite completa |
+| `lint` | `ruff check .` |
+| `pytest` | La suite completa, midiendo cobertura |
 | `auditoria` | `pip-audit` sobre las dependencias declaradas |
 | `contenedor` | Construye la imagen y la levanta |
+
+La cobertura está en el **74 %**, y el CI falla si baja de ahí. El umbral es el
+valor medido, no un objetivo: existe para que no se erosione sin que nadie lo
+note, que es exactamente lo que pasa cuando se mide y no se fija. Lo más flojo
+es lo que no se puede probar sin red ni ficheros reales —el parser de PDF de
+Revolut (11 %), la transcripción de voz (33 %)— y los routers con más ramas de
+formulario.
 
 El último es el que más ha valido la pena: los dos incidentes graves del
 proyecto no estaban en el código sino en el despliegue, así que ese job levanta
