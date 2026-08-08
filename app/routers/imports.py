@@ -6,11 +6,12 @@ duplicados (import_hash) antes de crear nada."""
 import json
 from datetime import date as date_cls, datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import verify_auth
 from ..database import get_db
+from ..uploads import MAX_CSV_BYTES, MAX_PDF_BYTES, leer_limitado
 from ..flash import redirect_flash
 from ..forms import OptInt
 from ..models import Account, Asset, AssetType, CURRENCY_CODES, Currency, Operation, OperationType
@@ -183,8 +184,20 @@ async def import_preview(
     if not importer:
         return redirect_flash("/operaciones/importar", "Formato de importación desconocido", "error")
 
-    raw_bytes = await archivo.read()
+    # Lectura acotada: sin tope, arrastrar el fichero equivocado tumba el
+    # proceso por memoria en vez de fallar de forma controlada. Se lee con el
+    # límite de CSV y después, si resulta ser un PDF, se aplica el suyo, que es
+    # más bajo: estos bytes van a fitz.open(), que con un PDF malformado o con
+    # bombas de descompresión consume mucha más memoria que el fichero original.
+    raw_bytes = await leer_limitado(archivo, MAX_CSV_BYTES)
     filename = (archivo.filename or "").lower()
+
+    es_pdf = filename.endswith(".pdf") or raw_bytes[:4] == b"%PDF"
+    if es_pdf and len(raw_bytes) > MAX_PDF_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail="El PDF supera el límite de %d MB" % (MAX_PDF_BYTES // (1024 * 1024)),
+        )
 
     # Si es PDF, extraer texto con pymupdf
     if filename.endswith(".pdf") or raw_bytes[:4] == b"%PDF":

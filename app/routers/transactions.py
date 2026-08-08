@@ -18,6 +18,7 @@ from ..models import Operation, OperationType, Transaction, TransactionType, Tra
 from ..services import market_data
 from ..services.voice_parser import guess_category, parse_voice_operation, parse_voice_text
 from ..templating import dinero, templates
+from ..uploads import leer_texto_limitado
 
 router = APIRouter(prefix="/transacciones", tags=["transacciones"], dependencies=[Depends(verify_auth)])
 
@@ -202,7 +203,10 @@ async def import_csv(
     """Importa movimientos desde un CSV exportado del banco. El usuario indica qué
     columnas corresponden a fecha/importe/descripción, ya que cada banco exporta
     con nombres de columna distintos."""
-    contenido = (await archivo.read()).decode("utf-8-sig", errors="ignore")
+    # Acotado: `archivo.read()` a secas carga el fichero entero y el decode hace
+    # una segunda copia, así que arrastrar el fichero equivocado mataba el
+    # proceso por memoria en vez de dar un error.
+    contenido = await leer_texto_limitado(archivo)
     reader = csv.DictReader(io.StringIO(contenido))
     creados = 0
     ignorados = 0
