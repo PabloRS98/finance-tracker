@@ -1,9 +1,21 @@
 """Configuración centralizada vía variables de entorno (.env)."""
+from pathlib import Path
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_PASSWORD = "changeme"
+MIN_PASSWORD_LENGTH = 8
+
+# Absoluta, por el mismo motivo que las plantillas y los estáticos, pero este
+# caso es peor: no revienta. Con una ruta relativa el .env solo se lee si el
+# proceso arranca desde la raíz del repo, y si no, la app se levanta en silencio
+# con toda la configuración por defecto — es decir, sin autenticación.
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     # General
     app_name: str = "Tracker de Patrimonio"
@@ -12,7 +24,7 @@ class Settings(BaseSettings):
     # Autenticación HTTP Basic opcional (recomendado activar si se expone vía VPN)
     enable_auth: bool = False
     auth_username: str = "admin"
-    auth_password: str = "changeme"
+    auth_password: str = DEFAULT_PASSWORD
 
     # Base de datos SQLite
     db_path: str = "/data/finance.db"
@@ -48,6 +60,30 @@ class Settings(BaseSettings):
     telegram_summary_hour: int = 9         # hora local del resumen diario
     telegram_summary_minute: int = 0
     whisper_model: str = "small"           # tiny/base/small/medium (calidad vs CPU)
+
+    @model_validator(mode="after")
+    def _reject_insecure_password(self) -> "Settings":
+        """Con la autenticación activada, no arrancar con la contraseña de fábrica.
+
+        Un fallo al arrancar es ruidoso y se corrige en un minuto; una app
+        expuesta con admin/changeme puede pasar meses sin que nadie lo note.
+
+        Solo se comprueba con `enable_auth` activo: aplicarlo siempre dejaría
+        sin levantar a cualquier instalación existente, que arranca sin
+        autenticación y con el valor por defecto.
+        """
+        if not self.enable_auth:
+            return self
+        if self.auth_password == DEFAULT_PASSWORD:
+            raise ValueError(
+                "ENABLE_AUTH está activado pero AUTH_PASSWORD sigue siendo el valor "
+                "de fábrica. Cámbialo en el .env antes de exponer la aplicación."
+            )
+        if len(self.auth_password) < MIN_PASSWORD_LENGTH:
+            raise ValueError(
+                "AUTH_PASSWORD debe tener al menos %d caracteres." % MIN_PASSWORD_LENGTH
+            )
+        return self
 
 
 settings = Settings()

@@ -4,13 +4,20 @@ import time
 import zlib
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 from jinja2.utils import htmlsafe_json_dumps
 
 from .csrf import csrf_input
 
-templates = Jinja2Templates(directory="app/templates")
+# Ruta absoluta derivada del propio módulo, no "app/templates": una ruta
+# relativa al cwd solo funciona si el proceso arranca desde la raíz del repo.
+# En Docker el WORKDIR /app lo salva, pero rompe cualquier otro modo de
+# arranque (uvicorn desde otra carpeta, un systemd unit sin WorkingDirectory).
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
+
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def _json_default(value):

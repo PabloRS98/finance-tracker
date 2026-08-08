@@ -9,10 +9,16 @@ services:
     container_name: finance-tracker
     restart: unless-stopped
     ports:
-      # Se publica en todas las interfaces a propósito: la app se usa a diario
-      # desde el móvil dentro de la LAN. Si la expones fuera de casa, activa
-      # ENABLE_AUTH y ponla detrás de un proxy inverso con TLS o de una VPN.
-      - "0.0.0.0:${FINANCE_PORT:-8001}:8000"
+      # Solo loopback por defecto. Antes se publicaba fijo en 0.0.0.0 porque la
+      # app se usa a diario desde el móvil en la LAN; el problema es que esa
+      # comodidad venía de serie, combinada con la autenticación desactivada y
+      # sin nada que impidiera arrancar con la contraseña de fábrica. Cualquiera
+      # en la misma Wi-Fi leía y escribía el patrimonio entero.
+      #
+      # Para volver a llegar desde el móvil: FINANCE_BIND=0.0.0.0 en el .env,
+      # y entonces ENABLE_AUTH=true con una contraseña de verdad (el validador
+      # de app/config.py no deja arrancar con la de fábrica).
+      - "${FINANCE_BIND:-127.0.0.1}:${FINANCE_PORT:-8001}:8000"
     env_file:
       # Opcional: sin .env la app arranca con los valores por defecto de
       # app/config.py (sin autenticación, sin Telegram). Copia .env.example.

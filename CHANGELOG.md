@@ -17,6 +17,42 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-C3] La app arranca desde cualquier directorio
+
+Las plantillas, los estáticos y el `.env` se resolvían con rutas relativas al
+directorio de trabajo del proceso. Funcionaba de casualidad: el `WORKDIR /app`
+del Dockerfile lo salvaba. Cualquier otra forma de arrancar —uvicorn desde otra
+carpeta, un systemd unit sin `WorkingDirectory`, un `docker run -w /`— fallaba
+al montar los estáticos o al primer render.
+
+El del `.env` era el peor de los tres precisamente porque **no fallaba**: si no
+se leía, la app se levantaba con todos los valores por defecto, es decir sin
+autenticación y sin Telegram, sin ningún error visible. Un cambio de directorio
+bastaba para degradar la seguridad en silencio.
+
+Las tres rutas se derivan ahora del propio módulo.
+
+### [FT-C1] Exponer la app pasa a ser una decisión, no el valor por defecto
+
+Tres cosas defendibles por separado se sumaban en algo que no lo era: el puerto
+publicado en todas las interfaces, la autenticación desactivada de fábrica, y
+nada que impidiera arrancar con `admin`/`changeme`. Cualquiera en la misma
+Wi-Fi —un invitado, un dispositivo IoT comprometido— tenía lectura y escritura
+del patrimonio, las operaciones y los extractos importados. Sin credenciales.
+
+Ahora el puerto se publica en `127.0.0.1` y abrirlo a la red es explícito
+(`FINANCE_BIND`). Con la autenticación activa, la app **no arranca** si la
+contraseña sigue siendo la de fábrica o tiene menos de 8 caracteres: un fallo
+al arrancar se corrige en un minuto, y una app expuesta con la contraseña de
+fábrica puede pasar meses sin que nadie lo note. Y cuando queda sin
+autenticación lo dice en el log, porque en la interfaz no se ve.
+
+`ENABLE_AUTH` sigue desactivado por defecto a propósito: activarlo dejaría
+fuera a la instalación existente al primer redespliegue.
+
+**Al actualizar:** si usas la app desde el móvil, hace falta `FINANCE_BIND=0.0.0.0`
+en el `.env` para volver a llegar a ella — y con eso, `ENABLE_AUTH=true`.
+
 ### [FT-C2] La autenticación aguanta contraseñas con tildes
 
 `secrets.compare_digest` sobre `str` exige ASCII puro: con
