@@ -133,6 +133,41 @@ async def csrf_cookie(request: Request, call_next):
     return response
 
 
+# 'unsafe-inline' es un compromiso consciente de esta primera iteración: hay
+# bloques <script> y atributos style="" en las plantillas, y quitarlos es un
+# trabajo aparte (anotado como seguimiento para migrar a nonces). Aun así la
+# CSP ya impide cargar scripts de otro origen y exfiltrar por img-src o
+# connect-src externos, que es la mitad del valor.
+#
+# frame-ancestors 'none' no es decorativo: con las credenciales Basic
+# cacheadas por el navegador, embeber la app en un iframe permite clickjacking
+# sobre "Eliminar activo". El token CSRF protege el POST, pero no protege de
+# que el clic lo dé el propio usuario engañado sobre la página real.
+CSP = (
+    "default-src 'self'; img-src 'self' data:; "
+    "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; "
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+)
+
+
+@app.middleware("http")
+async def cabeceras_de_seguridad(request: Request, call_next):
+    """Cabeceras de seguridad en todas las respuestas, estáticos y errores incluidos.
+
+    Se declara a nivel de app por el mismo motivo que el CSRF: cubrir también
+    lo que se añada después. `setdefault` para que una ruta pueda relajar una
+    cabecera concreta si algún día hace falta, sin tocar el middleware.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    # Redundante con frame-ancestors para navegadores al día, pero es la única
+    # protección contra encuadre en los que no implementan esa directiva.
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Content-Security-Policy", CSP)
+    return response
+
+
 app.include_router(dashboard.router)
 app.include_router(assets.router)
 app.include_router(operations.router)

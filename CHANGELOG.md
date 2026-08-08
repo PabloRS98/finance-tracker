@@ -17,6 +17,39 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A8] Cabeceras de seguridad HTTP
+
+La app no emitía ninguna. Lo que eso permitía, en concreto:
+
+- Sin CSP, cualquier XSS que apareciera en el futuro tendría ejecución total,
+  y ya hay bloques `<script>` en línea en tres plantillas.
+- Sin `frame-ancestors`, la app se puede embeber desde otro origen. Con las
+  credenciales Basic cacheadas por el navegador eso permite clickjacking sobre
+  "Eliminar activo": el token CSRF protege el POST, pero no protege de que el
+  clic lo dé el propio usuario engañado sobre la página real embebida.
+- Sin `Referrer-Policy`, cada enlace externo filtra la URL completa de la app.
+
+`'unsafe-inline'` se mantiene a propósito en esta primera iteración —quitar los
+scripts y estilos en línea es un trabajo aparte—, y aun así la CSP ya impide
+cargar scripts de otro origen y exfiltrar por `img-src` o `connect-src`
+externos.
+
+### [FT-A1] El token del bot de Telegram deja de escribirse en los logs
+
+`API_URL` lleva el token en la ruta, y el mensaje de `httpx.HTTPStatusError`
+incluye la URL entera. `logger.exception` volcaba ese mensaje tal cual y, con
+el driver `json-file` del compose, el log persiste en disco — que es justo lo
+que uno pega en un issue cuando pide ayuda.
+
+Un token filtrado permite enviar mensajes suplantando al bot, leer los updates
+pendientes con `getUpdates` (que aquí llevan importes y nombres de activos) y
+secuestrarlo cambiando su webhook.
+
+Ahora los dos sitios que construyen la URL con el token registran solo el
+código HTTP o el tipo de excepción. Los `logger.exception` de Yahoo, CoinGecko
+y Frankfurter se quedan como están: esas URLs no llevan credenciales y ahí la
+traza completa es lo útil.
+
 ### [FT-C3] La app arranca desde cualquier directorio
 
 Las plantillas, los estáticos y el `.env` se resolvían con rutas relativas al
