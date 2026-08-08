@@ -17,6 +17,18 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A5] Los pesos de cartera del resumen de Telegram ya cuentan la divisa
+
+El comentario decía "en EUR" y el cálculo no convertía nada: multiplicaba el
+precio en la divisa del activo por la cantidad y lo dividía entre un total que
+sí venía convertido. Peras entre manzanas. Con EUR/USD ~1,08, una posición en
+dólares aparecía con un peso ~8 % inferior al real y todas las demás quedaban
+infladas para compensar — y sobre esos porcentajes se decide un rebalanceo.
+
+Ahora se convierte, y las posiciones cuya divisa no se puede convertir quedan
+fuera del reparto y se nombran al pie, igual que hace el dashboard: un
+porcentaje que no suma 100 sin explicación es peor que uno que falta.
+
 ### [FT-A4] Límite de tamaño en las subidas de ficheros
 
 Ni la importación de operaciones ni la de movimientos del banco acotaban el
