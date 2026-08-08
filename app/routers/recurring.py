@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from ..auth import verify_auth
 from ..database import get_db
 from ..flash import redirect_flash
-from ..forms import OptInt
+from ..forms import Importe, OptInt, validar_importe
 from ..models import Category, Currency, RecurringTransaction, TransactionType
 from ..services.recurring import (
     FREQUENCIES,
@@ -56,7 +56,7 @@ def list_recurring(request: Request, db: Session = Depends(get_db)):
 def create_recurring(
     name: str = Form(...),
     type: TransactionType = Form(...),
-    amount: float = Form(...),
+    amount: Importe = None,
     currency: Currency = Form(Currency.EUR),
     interval_months: int = Form(1),
     category_id: OptInt = None,
@@ -64,6 +64,10 @@ def create_recurring(
     start_date: date = Form(...),
     db: Session = Depends(get_db),
 ):
+    motivo = validar_importe(amount)
+    if motivo:
+        return redirect_flash("/recurrentes", motivo, "error")
+
     rule = RecurringTransaction(
         name=name.strip(),
         type=type,
@@ -88,13 +92,17 @@ def edit_recurring(
     rule_id: int,
     name: str = Form(...),
     type: TransactionType = Form(...),
-    amount: float = Form(...),
+    amount: Importe = None,
     currency: Currency = Form(Currency.EUR),
     interval_months: int = Form(1),
     category_id: OptInt = None,
     day_of_month: int = Form(...),
     db: Session = Depends(get_db),
 ):
+    motivo = validar_importe(amount)
+    if motivo:
+        return redirect_flash("/recurrentes", motivo, "error")
+
     rule = db.get(RecurringTransaction, rule_id)
     if not rule:
         return redirect_flash("/recurrentes", "La recurrente ya no existe", "error")

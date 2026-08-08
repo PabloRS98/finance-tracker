@@ -14,7 +14,7 @@ from ..auth import verify_auth
 from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
-from ..forms import OptInt
+from ..forms import Importe, OptInt, validar_importe
 from ..models import Category, Operation, OperationType, Transaction, TransactionStatus, TransactionType
 from ..services import market_data
 from ..services.voice_parser import guess_category, parse_voice_operation, parse_voice_text
@@ -83,10 +83,14 @@ def create_transaction(
     date: date_cls = Form(...),
     type: TransactionType = Form(...),
     category_id: OptInt = None,
-    amount: float = Form(...),
+    amount: Importe = None,
     description: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    motivo = validar_importe(amount)
+    if motivo:
+        return redirect_flash("/transacciones", motivo, "error")
+
     tx = Transaction(
         date=date,
         type=type,
@@ -107,10 +111,14 @@ def edit_transaction(
     date: date_cls = Form(...),
     type: TransactionType = Form(...),
     category_id: OptInt = None,
-    amount: float = Form(...),
+    amount: Importe = None,
     description: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    motivo = validar_importe(amount)
+    if motivo:
+        return redirect_flash("/transacciones", motivo, "error")
+
     tx = db.get(Transaction, tx_id)
     if not tx:
         return redirect_flash("/transacciones", "La transacción ya no existe", "error")
@@ -135,13 +143,17 @@ def delete_transaction(tx_id: int, db: Session = Depends(get_db)):
 @router.post("/{tx_id}/confirmar")
 def confirm_transaction(
     tx_id: int,
-    amount: float = Form(...),
+    amount: Importe = None,
     type: TransactionType = Form(...),
     category_id: OptInt = None,
     description: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Confirma (y opcionalmente corrige) una transacción pendiente creada por voz."""
+    motivo = validar_importe(amount)
+    if motivo:
+        return redirect_flash("/transacciones", motivo, "error")
+
     tx = db.get(Transaction, tx_id)
     if tx:
         tx.amount = amount
