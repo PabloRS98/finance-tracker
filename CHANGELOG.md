@@ -73,6 +73,24 @@ como próximo cargo una fecha ya pasada.
 estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
 comentario explicando por qué están donde están—, son descuidos.
 
+### Los catorce hallazgos bajos
+
+Coherencia y limpieza. Cinco se resolvieron solos al aplicar los anteriores —el
+orden de imports con ruff, `max_instances` con el paralelismo, el doble cálculo
+de la lista de activos, los tests dentro de la imagen—; los otros nueve, aquí.
+
+Dos tenían síntoma de verdad: el temporal de la transcripción se quedaba
+huérfano si la escritura fallaba, porque el `finally` que lo borra se abría
+después de escribir; y las cajas del resumen de Telegram usaban dos anchos
+distintos (48 y 42) para cajas que se ven juntas en el mismo mensaje, así que no
+alineaban.
+
+El resto son duplicados y nombres que engañan, que es de donde salen los bugs de
+dentro de seis meses: la cuenta de meses escrita dos veces, el umbral de
+cantidad como literal repetido, `porcentaje` y `porcentaje_real` sin decir cuál
+era cuál, el backfill de cinco años como número suelto, y la configuración de
+pytest en un fichero aparte y sin `--strict-markers`.
+
 ### [FT-M15] Los fallos de las APIs de precios dicen qué ha pasado
 
 `get_stock_price` capturaba todo y devolvía `None`. Un ticker que no existe, una

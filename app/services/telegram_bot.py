@@ -32,13 +32,18 @@ from ..templating import dinero
 from . import market_data, stt, telegram
 from ._telegram_fmt import escapar
 from .history import eur_usd_snapshot
-from .portfolio import asset_summary, portfolio_totals
+from .portfolio import CANTIDAD_MINIMA, asset_summary, portfolio_totals
 from .scheduler import compute_net_worth_eur
 from .voice_parser import parse_voice_operation, parse_voice_text
 
 logger = logging.getLogger(__name__)
 
 MAX_VOICE_SECONDS = 300  # nota de voz máxima; más largo no es una operación, es un podcast
+
+# Ancho interior de las cajas de texto del resumen. Uno solo: había 48 en unas y
+# 42 en otras, y esas cajas se ven juntas en el mismo mensaje, así que no
+# alineaban entre sí.
+BOX_W = 48
 
 AYUDA = (
     "🤖 <b>Midas</b> — tu patrimonio por Telegram\n\n"
@@ -271,7 +276,7 @@ def _positions_grouped(db: Session, total_eur: float) -> list[str]:
         # El umbral no es 0 sino una fracción ínfima: al vender entera una
         # posición, restar los flotantes deja un residuo tipo 4.44e-16 que
         # aparecía en el resumen como una posición viva de cero unidades.
-        if not qty or qty <= 1e-9:
+        if not qty or qty <= CANTIDAD_MINIMA:
             continue
         # El peso se calcula contra `total_eur`, que YA viene convertido a la
         # moneda base. Antes el numerador se dejaba en la divisa del activo:
@@ -309,7 +314,6 @@ def _positions_grouped(db: Session, total_eur: float) -> list[str]:
             return (1, 0)
         return (0, -pnl)
 
-    BOX_W = 48  # ancho interior de las cajas
     lines = []
     for grupo_nombre, items in grupos.items():
         if not items:
@@ -359,7 +363,6 @@ def build_summary(db: Session, titulo: str | None = None) -> str:
     total = compute_net_worth_eur(db)
     invested = portfolio_totals(db)
 
-    BOX_W = 42
 
     # ── Cabecera ──
     # El título distingue de cuál de los cinco avisos diarios se trata
@@ -405,7 +408,7 @@ def build_summary(db: Session, titulo: str | None = None) -> str:
         s = asset_summary(asset)
         # Mismo umbral que en la cartera: una posición vendida entera deja un
         # residuo de coma flotante (4e-16) que es "verdadero" pero no es nada.
-        if s["day_change_pct"] is not None and (s["quantity"] or 0) > 1e-9:
+        if s["day_change_pct"] is not None and (s["quantity"] or 0) > CANTIDAD_MINIMA:
             movers.append((asset.name, s["day_change_pct"]))
     movers.sort(key=lambda m: abs(m[1]), reverse=True)
     if movers:

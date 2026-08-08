@@ -30,6 +30,7 @@ from ..models import (
 from ..services import market_data
 from ..services.history import benchmark_series, cagr_from_evolution, eur_usd_snapshot, portfolio_evolution
 from ..services.portfolio import portfolio_totals
+from ..services.recurring import sumar_meses
 from ..services.scheduler import backup_database, compute_net_worth
 from ..services.xray import invested_rows
 from ..templating import templates
@@ -160,14 +161,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         gastos_por_categoria[nombre] = gastos_por_categoria.get(nombre, CERO) + t.amount
 
     # Ingresos vs gastos de los últimos 6 meses
-    year, month = today.year, today.month
-    meses_rango = []
-    for i in range(5, -1, -1):
-        m, y = month - i, year
-        while m <= 0:
-            m += 12
-            y -= 1
-        meses_rango.append((y, m))
+    # `sumar_meses` de services/recurring.py hace exactamente esta cuenta, y
+    # tenerla dos veces es tenerla dos veces mal el día que alguien arregle una.
+    meses_rango = [sumar_meses(today.year, today.month, -i) for i in range(5, -1, -1)]
     ingresos_serie, gastos_serie = series_mensuales(db, meses_rango)
     meses_labels = ["%s %s" % (calendar.month_abbr[m], y) for y, m in meses_rango]
 
@@ -181,8 +177,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "categoria": cat.name,
                 "limite": cat.budget_limit,
                 "gastado": gastado,
-                "porcentaje": min(100, porcentaje),
-                "porcentaje_real": porcentaje,
+                # Dos valores porque son dos cosas: lo que mide la barra (que
+                # no puede pasarse de su ancho) y lo que se ha gastado de
+                # verdad (que sí puede pasar del 100 %, y es justo lo que hay
+                # que ver). Antes se llamaban `porcentaje` y `porcentaje_real`,
+                # y había que mirar la plantilla para saber cuál era cuál.
+                "porcentaje_barra": min(100, porcentaje),
+                "porcentaje": porcentaje,
             })
 
     pendientes = (

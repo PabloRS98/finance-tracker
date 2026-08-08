@@ -168,10 +168,10 @@
     {% for p in presupuestos %}
     <div class="budget-row">
         <span>{{ p.categoria }}</span>
-        <div class="progress {{ 'over' if p.porcentaje_real > 100 else ('warning' if p.porcentaje_real > 80 else '') }}">
-            <div style="width: {{ p.porcentaje }}%"></div>
+        <div class="progress {{ 'over' if p.porcentaje > 100 else ('warning' if p.porcentaje > 80 else '') }}">
+            <div style="width: {{ p.porcentaje_barra }}%"></div>
         </div>
-        <span class="num">{{ p.gastado|dinero }} / {{ p.limite|dinero }} {{ base_currency }} ({{ p.porcentaje_real }}%)</span>
+        <span class="num">{{ p.gastado|dinero }} / {{ p.limite|dinero }} {{ base_currency }} ({{ p.porcentaje }}%)</span>
     </div>
     {% endfor %}
 </details>
