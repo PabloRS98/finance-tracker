@@ -73,6 +73,18 @@ como próximo cargo una fecha ya pasada.
 estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
 comentario explicando por qué están donde están—, son descuidos.
 
+### [FT-M15] Los fallos de las APIs de precios dicen qué ha pasado
+
+`get_stock_price` capturaba todo y devolvía `None`. Un ticker que no existe, una
+cuota agotada, un timeout y un corte de red se veían **igual**: "No se pudo
+actualizar el precio". Y la acción que hay que tomar es distinta en cada caso —
+corregir el ticker, esperar, o mirar la red.
+
+Ahora se distinguen, con el planteamiento que `projects-dashboard` ya tenía
+resuelto, adaptado: aquí las APIs son públicas y sin key, así que no hay "token
+caducado"; a cambio importa el 429 de CoinGecko, que en el plan gratuito llega
+enseguida y no es lo mismo que un id mal escrito.
+
 ### [FT-M16] La voz avisa cuando no está segura del importe
 
 Agotados los patrones con moneda explícita y con decimales, el parser se

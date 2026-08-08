@@ -13,6 +13,8 @@ from urllib.parse import quote
 
 import httpx
 
+from . import errores_api
+
 logger = logging.getLogger(__name__)
 
 _CENT = Decimal("0.01")
@@ -261,8 +263,10 @@ def get_stock_price(ticker: str) -> dict | None:
             # nombre es el propio ticker (importaciones de Revolut)
             "name": meta.get("longName") or meta.get("shortName"),
         }
-    except Exception:
-        logger.exception("Fallo al obtener precio de acción %s", ticker)
+    except Exception as exc:
+        # Con el motivo concreto: un ticker inexistente, una cuota agotada y un
+        # corte de red exigen acciones distintas y antes se veían igual.
+        logger.warning("Precio de %s: %s", ticker, errores_api.registrar(exc, "Yahoo", ticker))
         return None
 
 
@@ -282,6 +286,9 @@ def get_crypto_price(coingecko_id: str, vs_currency: str = "eur") -> tuple[float
         change_pct = data.get(f"{vs_currency}_24h_change")
         prev = price / (1 + change_pct / 100.0) if change_pct is not None else None
         return price, prev
-    except Exception:
-        logger.exception("Fallo al obtener precio de cripto %s", coingecko_id)
+    except Exception as exc:
+        # CoinGecko corta con 429 en el plan gratuito: hay que poder distinguirlo
+        # de un id mal escrito, porque uno se arregla esperando y el otro no.
+        logger.warning("Precio de %s: %s", coingecko_id,
+                       errores_api.registrar(exc, "CoinGecko", coingecko_id))
         return None
