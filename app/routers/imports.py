@@ -4,6 +4,7 @@ Flujo sin estado en servidor: el preview serializa cada fila parseada como JSON
 en un campo oculto del formulario; al confirmar se re-validan las filas y los
 duplicados (import_hash) antes de crear nada."""
 import json
+import re
 from datetime import UTC, datetime
 from datetime import date as date_cls
 
@@ -72,8 +73,6 @@ def _price_asset(asset: Asset) -> str:
 def _existing_hashes(db: Session) -> set[str]:
     return {h for (h,) in db.query(Operation.import_hash).filter(Operation.import_hash.isnot(None)).all()}
 
-
-import re
 
 # Patrones que se eliminan al normalizar nombres para fuzzy matching
 _RE_SUFFIX = re.compile(

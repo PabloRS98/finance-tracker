@@ -23,10 +23,6 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# El `import re` a media altura del módulo es el hallazgo FT-M13, que va en su
-# propio PR: subirlo aquí mezclaría dos hallazgos en el mismo cambio. Esta
-# excepción se retira en ese PR.
-"app/routers/imports.py" = ["E402"]
 # El módulo abre con un bloque largo que explica por qué existen estos tests, y
 # los imports van detrás a propósito: el porqué se lee antes que el cómo.
 "tests/test_sistema_visual.py" = ["E402"]
