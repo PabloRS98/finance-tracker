@@ -1,12 +1,13 @@
 """CRUD de activos (cuentas, inversiones, cripto, inmuebles), con edición y precios."""
+import logging
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from sqlalchemy.orm import Session, selectinload
 
 from ..auth import verify_auth
 from ..config import settings
-from ..database import get_db
+from ..database import SessionLocal, get_db
 from ..flash import redirect_flash
 from ..forms import OptFloat
 from ..models import (
@@ -32,6 +33,8 @@ from ..templating import templates
 
 router = APIRouter(prefix="/activos", tags=["activos"], dependencies=[Depends(verify_auth)])
 
+logger = logging.getLogger(__name__)
+
 INVERTIBLE = (AssetType.ACCION, AssetType.CRIPTO)
 
 # Orden y etiqueta de las secciones de la lista de activos
@@ -45,6 +48,32 @@ TYPE_SECTIONS = [
 
 def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def buscar_precio_en_segundo_plano(asset_id: int) -> None:
+    """Busca el precio de un activo fuera del ciclo petición-respuesta.
+
+    `_fetch_price` puede tardar hasta 15 s (timeout de Yahoo) y, si además
+    dispara `classify.autofill`, otros 15 más: eran hasta 30 segundos con el
+    navegador colgado después de pulsar "Añadir".
+
+    Con su propia sesión: la de la petición ya está cerrada cuando esto corre.
+    Es el mismo patrón que `projects-dashboard` usa en `_sync_in_background`,
+    y por el mismo motivo escrito allí.
+    """
+    db = SessionLocal()
+    try:
+        asset = db.get(Asset, asset_id)
+        if asset is None:
+            return  # se borró entre el alta y esto: nada que hacer
+        if _fetch_price(asset):
+            db.commit()
+    except Exception:
+        # Un fallo aquí no puede tumbar nada: la petición ya se respondió y el
+        # activo ya está guardado. El job de precios lo reintentará.
+        logger.exception("No se pudo obtener el precio inicial del activo %s", asset_id)
+    finally:
+        db.close()
 
 
 def _fetch_price(asset: Asset) -> bool:
@@ -247,8 +276,22 @@ def _classify_defaults(asset: Asset) -> None:
     classify.autofill(asset)
 
 
+def _ticker_existe(asset_type: AssetType, ticker: str) -> bool:
+    """Comprobación ligera de que el ticker resuelve, antes de guardar.
+
+    Se hace en el ciclo de la petición a propósito, aunque el precio completo se
+    busque después: avisar de un ticker mal escrito es información que solo
+    sirve en el momento de escribirlo. Es lo mismo que ya hacen
+    `add_to_watchlist` y `create_benchmark`, con su motivo escrito allí.
+    """
+    if asset_type == AssetType.CRIPTO:
+        return market_data.get_crypto_price(ticker, settings.base_currency.lower()) is not None
+    return bool(market_data.get_stock_price(ticker))
+
+
 @router.post("")
 def create_asset(
+    background: BackgroundTasks,
     name: str = Form(...),
     asset_type: AssetType = Form(...),
     currency: Currency = Form(Currency.EUR),
@@ -274,27 +317,38 @@ def create_asset(
     _classify_defaults(asset)
     if manual_value is not None:
         asset.last_price_update = _utcnow()
+    # Se valida el ticker ANTES de guardar: después ya no hay a quién avisar.
+    ticker_valido = True
+    if asset.asset_type in (AssetType.ACCION, AssetType.CRIPTO) and asset.ticker:
+        ticker_valido = _ticker_existe(asset.asset_type, asset.ticker)
+
     db.add(asset)
     db.commit()
     db.refresh(asset)
 
-    # Intenta obtener el precio inicial al vuelo si es una acción o cripto
-    fetched = _fetch_price(asset)
-    if fetched:
-        db.commit()
-
-    if asset.asset_type in (AssetType.ACCION, AssetType.CRIPTO) and asset.ticker and not fetched:
-        return redirect_flash(
-            "/activos",
-            '"%s" añadido, pero no se pudo obtener su precio (revisa el ticker/ID)' % asset.name,
-            "error",
-        )
+    # El precio se busca DESPUÉS de responder. Antes se hacía aquí dentro, con
+    # hasta 15 s de timeout de Yahoo más otros tantos si saltaba la
+    # clasificación: medio minuto de pantalla en blanco tras pulsar "Añadir".
+    #
+    # El aviso de ticker mal escrito no se pierde: se comprueba antes de
+    # guardar, con una petición ligera y timeout corto, que es lo que ya hacen
+    # `add_to_watchlist` y `create_benchmark`.
+    if asset.asset_type in (AssetType.ACCION, AssetType.CRIPTO) and asset.ticker:
+        background.add_task(buscar_precio_en_segundo_plano, asset.id)
+        if not ticker_valido:
+            return redirect_flash(
+                "/activos",
+                '"%s" añadido, pero el ticker no parece existir (revísalo)' % asset.name,
+                "error",
+            )
+        return redirect_flash("/activos", '"%s" añadido; buscando su precio…' % asset.name)
     return redirect_flash("/activos", 'Activo "%s" añadido' % asset.name)
 
 
 @router.post("/{asset_id}/editar")
 def edit_asset(
     asset_id: int,
+    background: BackgroundTasks,
     name: str = Form(...),
     asset_type: AssetType = Form(...),
     currency: Currency = Form(Currency.EUR),
@@ -329,7 +383,9 @@ def edit_asset(
     if ticker_changed:
         asset.current_price = None
         asset.last_price_update = None
-        _fetch_price(asset)
+        # También en segundo plano: editar el ticker tenía el mismo coste que
+        # crearlo, hasta 30 s con el navegador esperando.
+        background.add_task(buscar_precio_en_segundo_plano, asset.id)
     elif manual_changed and manual_value is not None:
         # Marca de revisión del valor manual (la usa la regla de estancados del X-Ray)
         asset.last_price_update = _utcnow()

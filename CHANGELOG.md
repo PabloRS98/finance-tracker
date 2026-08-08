@@ -73,6 +73,40 @@ como próximo cargo una fecha ya pasada.
 estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
 comentario explicando por qué están donde están—, son descuidos.
 
+### Rendimiento: cinco cambios, todos con su medida
+
+La regla de esta tanda era que sin número no entra nada. Primero se montó el
+contador de sentencias SQL (`DEBUG_SQL=1`, cabecera `X-Consultas-SQL`) y se fijó
+la línea base; después, cada cambio con su antes y su después.
+
+| Hallazgo | Qué medía | Antes | Después |
+|---|---|---:|---:|
+| **FT-M1** | consultas de la portada | 39 | **28** |
+| **FT-M2** | duración del refresco de precios | 3,61 s | **1,21 s** |
+| **FT-M4** | recorridos de la cartera en el rebalanceo | 2 | **1** |
+| **FT-M10** | cálculos de posición en `/activos` | 10 | **5** |
+| **FT-M3** | espera del navegador al añadir un activo | hasta 30 s | inmediata |
+
+**FT-M1.** El desglose por tipo recorría la cartera por cuarta vez para calcular
+lo que la valoración acababa de calcular, y la gráfica de seis meses hacía seis
+consultas para pintar seis puntos.
+
+**FT-M2.** Las cotizaciones se pedían de una en una, con 10-15 s de timeout cada
+una. Ahora en paralelo, con límites separados por proveedor —CoinGecko responde
+429 en cuanto te pasas— y los hilos haciendo solo HTTP, sin tocar la base. Y los
+jobs declaran `max_instances=1`, para que una ejecución larga no se solape con
+la siguiente.
+
+**FT-M4.** La página de rebalanceo calculaba la cartera entera dos veces, porque
+el reparto volvía a pedir el plan que la vista ya tenía.
+
+**FT-M10.** La lista de activos pedía el valor al modelo y el resumen al
+servicio, y las dos cosas valoran la misma posición reordenando sus operaciones.
+
+**FT-M3.** Añadir un activo esperaba a Yahoo dentro de la petición: hasta medio
+minuto de pantalla en blanco. El precio pasa a segundo plano; el aviso de ticker
+mal escrito se queda donde sirve, antes de guardar.
+
 ### [FT-A10] El `.dockerignore` deja de subir basura al contexto
 
 Tenía cinco líneas y no excluía `.git/`, la base de datos, los backups ni los
