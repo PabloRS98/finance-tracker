@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import FileResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
@@ -16,7 +17,6 @@ from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
 from ..models import (
-    Asset,
     AssetType,
     Category,
     NetWorthIntraday,
@@ -46,6 +46,50 @@ TYPE_LABELS = {
 }
 
 
+def series_mensuales(
+    db: Session, meses: list[tuple[int, int]],
+) -> tuple[list[Decimal], list[Decimal]]:
+    """Ingresos y gastos confirmados de cada mes, en una sola consulta agrupada.
+
+    Antes era una consulta por mes: seis viajes a la base para pintar una
+    gráfica de seis puntos, y encima traían las filas enteras para acabar
+    sumándolas en Python.
+
+    Vive fuera de la vista para poder probarla: la suma de los meses es lo
+    único de la portada que se puede comprobar contra un número exacto, y una
+    optimización que cambia el resultado no es una optimización.
+    """
+    if not meses:
+        return [], []
+
+    primer_mes = date(meses[0][0], meses[0][1], 1)
+    ultimo_y, ultimo_m = meses[-1]
+    fin_rango = date(ultimo_y + 1, 1, 1) if ultimo_m == 12 else date(ultimo_y, ultimo_m + 1, 1)
+
+    agregados = {
+        (fila.mes, fila.tipo): fila.total
+        for fila in db.query(
+            func.strftime("%Y-%m", Transaction.date).label("mes"),
+            Transaction.type.label("tipo"),
+            func.sum(Transaction.amount).label("total"),
+        )
+        .filter(
+            Transaction.date >= primer_mes, Transaction.date < fin_rango,
+            # Una pendiente todavía no ha ocurrido: no puede entrar en la serie.
+            Transaction.status == TransactionStatus.CONFIRMADO,
+        )
+        .group_by("mes", Transaction.type)
+        .all()
+    }
+
+    ingresos, gastos = [], []
+    for y, m in meses:
+        clave = "%04d-%02d" % (y, m)
+        ingresos.append(round(Decimal(agregados.get((clave, TransactionType.INGRESO), 0) or 0), 2))
+        gastos.append(round(Decimal(agregados.get((clave, TransactionType.GASTO), 0) or 0), 2))
+    return ingresos, gastos
+
+
 @router.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
     valuation = compute_net_worth(db)
@@ -67,17 +111,13 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     ]
 
-    # Desglose del patrimonio por tipo de activo (en moneda base)
+    # Desglose por tipo de activo. Sale de la valoración que ya se hizo arriba:
+    # antes esto recorría los activos por cuarta vez y volvía a pedir un tipo de
+    # cambio por cada uno, calculando exactamente lo mismo.
     breakdown: dict[str, float] = {}
-    for asset in db.query(Asset).all():
-        rate = market_data.get_exchange_rate(asset.currency.value, settings.base_currency)
-        if rate is None:
-            continue  # sin tipo de cambio no se puede repartir por tipo de activo
-        value = asset.current_value() * rate
-        if value <= 0:
-            continue
-        label = TYPE_LABELS.get(asset.asset_type, "Otro")
-        breakdown[label] = breakdown.get(label, 0.0) + value
+    for tipo, valor in valuation.por_tipo.items():
+        label = TYPE_LABELS.get(tipo, "Otro")
+        breakdown[label] = breakdown.get(label, 0.0) + valor
     breakdown_items = sorted(breakdown.items(), key=lambda kv: kv[1], reverse=True)
 
     # Mapa de la cartera invertida: superficie = peso, color = variación del día.
@@ -120,7 +160,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         gastos_por_categoria[nombre] = gastos_por_categoria.get(nombre, CERO) + t.amount
 
     # Ingresos vs gastos de los últimos 6 meses
-    meses_labels, ingresos_serie, gastos_serie = [], [], []
     year, month = today.year, today.month
     meses_rango = []
     for i in range(5, -1, -1):
@@ -129,22 +168,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             m += 12
             y -= 1
         meses_rango.append((y, m))
-    for y, m in meses_rango:
-        inicio = date(y, m, 1)
-        fin = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
-        txs = (
-            db.query(Transaction)
-            .filter(
-                Transaction.date >= inicio, Transaction.date < fin,
-                Transaction.status == TransactionStatus.CONFIRMADO,
-            )
-            .all()
-        )
-        meses_labels.append("%s %s" % (calendar.month_abbr[m], y))
-        ingresos_serie.append(
-            round(sum((t.amount for t in txs if t.type == TransactionType.INGRESO), CERO), 2)
-        )
-        gastos_serie.append(round(sum((t.amount for t in txs if t.type == TransactionType.GASTO), CERO), 2))
+    ingresos_serie, gastos_serie = series_mensuales(db, meses_rango)
+    meses_labels = ["%s %s" % (calendar.month_abbr[m], y) for y, m in meses_rango]
 
     presupuestos = []
     if settings.budgets_enabled:

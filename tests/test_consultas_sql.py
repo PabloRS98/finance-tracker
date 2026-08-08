@@ -51,7 +51,7 @@ def _consultas_de(client, ruta: str) -> int:
 
 
 @pytest.mark.parametrize(("ruta", "tope"), [
-    ("/", 60),                        # medido: 39, y es con diferencia la más cara
+    ("/", 40),                        # 39 antes de FT-M1, 28 después
     ("/activos", 15),                 # medido: 4
     ("/analisis", 30),                # medido: 15
     ("/analisis/rebalanceo", 15),     # medido: 4
