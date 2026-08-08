@@ -1,5 +1,61 @@
+# Alineado con .gitignore, y por el mismo motivo: el contexto entero se sube al
+# daemon en cada build y se guarda en la caché de capas. Hoy el Dockerfile copia
+# rutas concretas, así que nada de esto llegaría a la imagen, pero basta con que
+# alguien escriba `COPY . .` para que un extracto de banco acabe publicado en el
+# registro. Es más barato no subirlo nunca.
+
+# Control de versiones y CI
+.git/
+.github/
+.gitattributes
+.gitignore
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Datos: la base, su WAL y los backups. El sufijo va DESPUÉS de la extensión,
+# así que *.db no caza al -wal ni al -shm.
 data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Secretos. .env.example sí entra: no lleva ninguno y es lo primero que se mira.
 .env
+.env.*
+!.env.example
+
+# Extractos de banco y bróker. Mismo razonamiento que en .gitignore: el flujo
+# normal es dejar el CSV o el PDF a mano para importarlo, y uno olvidado aquí
+# publicaría el histórico completo de movimientos.
+*.csv
+*.pdf
+*.xlsx
+*.ofx
+*.qif
+import-inbox/
+
+# Documentación y herramientas: no se ejecutan dentro del contenedor
+*.md
+!NOTICE
+docker-compose.yml
+docker-compose.override.yml
+pyproject.toml
+requirements-dev.txt
+scripts/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

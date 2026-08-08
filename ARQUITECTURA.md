@@ -168,6 +168,18 @@ Windows dejaría el shebang como `#!/bin/sh\r` y el contenedor no arrancaría.
 que el WAL —que puede llevar miles de filas que aún no están en el `.db`— se
 lista aparte en el `.gitignore`.
 
+**El `.dockerignore` va alineado con el `.gitignore`.** No porque nada de eso
+llegue a la imagen —el Dockerfile copia rutas concretas—, sino porque el
+contexto entero se sube al daemon en cada build y se queda en la caché de
+capas. Bastaría con que alguien escribiera `COPY . .` para publicar un extracto
+de banco en el registro. Alinearlo bajó el contexto de 1,76 MB a 15 kB.
+
+**La imagen lleva los tests dentro, a propósito.** `COPY tests ./tests` permite
+`docker exec finance-tracker pytest -q` contra el contenedor real, que es donde
+aparecieron los dos incidentes graves. El coste son 33 ficheros de texto en una
+imagen que ya pesa cientos de megas por las dependencias; el beneficio es poder
+comprobar el despliegue sin montar nada.
+
 
 ## Tests
 

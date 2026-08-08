@@ -17,6 +17,16 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A10] El `.dockerignore` deja de subir basura al contexto
+
+Tenía cinco líneas y no excluía `.git/`, la base de datos, los backups ni los
+extractos de banco que el `.gitignore` sí protege. Nada de eso llegaba a la
+imagen —el Dockerfile copia rutas concretas—, pero el contexto entero se sube
+al daemon en cada build y se queda en la caché de capas: bastaría con que
+alguien escribiera `COPY . .` para publicar el histórico de movimientos.
+
+Alineado con el `.gitignore`, el contexto pasa de **1,76 MB a 15 kB**.
+
 ### [FT-A9] Linter en el proyecto y en el CI
 
 Era la aplicación más grande de las tres y la única sin linter. Se añade ruff
