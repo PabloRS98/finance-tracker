@@ -17,6 +17,21 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A2] Las alertas de precio llegan aunque el activo tenga un `&` en el nombre
+
+Los avisos se envían con `parse_mode: "HTML"` y los nombres de activo se
+autorrellenan desde Yahoo, así que llegan tal cual del mercado. Un nombre con
+`&` —hay de sobra— hacía que Telegram devolviera `400 can't parse entities`.
+
+Y lo que lo convertía en pérdida silenciosa: el error se tragaba, pero la
+alerta ya se había marcado como disparada **antes** de saber si el envío
+funcionó. Así que no llegaba, y tampoco volvía a intentarse hasta que la
+condición se rearmara. Ponías una alerta, cruzaba el precio, y no te enterabas.
+
+Dos cambios: el nombre va escapado en las tres ramas del mensaje, y el marcado
+pasa a hacerse solo cuando el envío devuelve algo. Sin bot configurado no se
+marca nada, porque no se ha avisado a nadie.
+
 ### [FT-A3] Borrar un activo ya no rompe las alertas de todos los demás
 
 `Asset.operations` tenía cascada; `Alerta` y `PesoObjetivo` no. Y SQLite no

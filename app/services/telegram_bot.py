@@ -9,7 +9,6 @@ chat_id, para poder configurarlo la primera vez.
 Lo que llega se interpreta con el mismo parser que la voz del navegador
 (services/voice_parser.py) y se crea PENDIENTE; el bot pide confirmación con
 botones ✅/❌ y solo al confirmar pasa a CONFIRMADO (o se borra al rechazar)."""
-import html
 import logging
 import re
 import threading
@@ -24,6 +23,7 @@ from ..models import (
 )
 from ..templating import dinero
 from . import market_data, stt, telegram
+from ._telegram_fmt import escapar
 from .history import eur_usd_snapshot
 from .portfolio import asset_summary, portfolio_totals
 from .scheduler import compute_net_worth_eur
@@ -51,13 +51,10 @@ AYUDA = (
 DIAS_SEMANA = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
 
 
-def _esc(valor: str) -> str:
-    """Escapa texto para el HTML de Telegram.
-
-    `quote=False` a propósito: Telegram solo decodifica &lt; &gt; &amp; y &quot;,
-    no las entidades numéricas, así que escapar el apóstrofo dejaba
-    "Delaney&#x27;s Corporation" tal cual en el mensaje."""
-    return html.escape(valor, quote=False)
+# La función vive ahora en _telegram_fmt, compartida con alertas.py, que la
+# necesitaba y no la tenía. Se conserva el nombre local para no tocar las 8
+# interpolaciones de este módulo, que ya la aplicaban bien.
+_esc = escapar
 
 
 def _fmt_pct(value: float) -> str:
