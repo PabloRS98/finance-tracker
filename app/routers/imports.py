@@ -4,20 +4,21 @@ Flujo sin estado en servidor: el preview serializa cada fila parseada como JSON
 en un campo oculto del formulario; al confirmar se re-validan las filas y los
 duplicados (import_hash) antes de crear nada."""
 import json
-from datetime import date as date_cls, datetime, timezone
+from datetime import UTC, datetime
+from datetime import date as date_cls
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import verify_auth
 from ..database import get_db
-from ..uploads import MAX_CSV_BYTES, MAX_PDF_BYTES, leer_limitado
 from ..flash import redirect_flash
 from ..forms import OptInt
-from ..models import Account, Asset, AssetType, CURRENCY_CODES, Currency, Operation, OperationType
+from ..models import CURRENCY_CODES, Account, Asset, AssetType, Currency, Operation, OperationType
 from ..services import market_data
 from ..services.importers import IMPORTERS, ParsedRow
 from ..templating import templates
+from ..uploads import MAX_CSV_BYTES, MAX_PDF_BYTES, leer_limitado
 
 router = APIRouter(prefix="/operaciones/importar", tags=["importar"], dependencies=[Depends(verify_auth)])
 
@@ -25,7 +26,7 @@ INVERTIBLE = (AssetType.ACCION, AssetType.CRIPTO)
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _price_asset(asset: Asset) -> str:

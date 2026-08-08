@@ -5,24 +5,31 @@ from html import escape
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .auth import verify_auth
 from .config import settings
 from .csrf import issue_token, set_cookie, verify_csrf
-from .database import get_db, revision_pendiente, SessionLocal
+from .database import SessionLocal, get_db, revision_pendiente
 from .models import Asset, Category
 from .routers import (
-    accounts, analysis, assets, categories, dashboard, imports, operations, recurring, transactions,
+    accounts,
+    analysis,
+    assets,
+    categories,
+    dashboard,
+    imports,
+    operations,
+    recurring,
+    transactions,
 )
 from .services.recurring import generate_due_transactions
-from .services.scheduler import start_scheduler, snapshot_net_worth, update_all_prices
+from .services.scheduler import snapshot_net_worth, start_scheduler, update_all_prices
 from .services.telegram_bot import start_bot, stop_bot
-from fastapi.concurrency import run_in_threadpool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

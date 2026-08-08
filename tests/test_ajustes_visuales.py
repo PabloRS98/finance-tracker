@@ -123,7 +123,7 @@ def test_la_frase_usa_la_contraccion():
     """«frente a el dólar» no es español."""
     # Sin los comentarios: uno de ellos cita la forma incorrecta para explicar
     # por qué se corrigió, y hacía fallar al propio test.
-    codigo = [l for l in DASHBOARD.splitlines() if not l.strip().startswith("//")]
+    codigo = [linea for linea in DASHBOARD.splitlines() if not linea.strip().startswith("//")]
 
-    assert any("frente al " in l for l in codigo)
-    assert not any("frente a el" in l for l in codigo)
+    assert any("frente al " in linea for linea in codigo)
+    assert not any("frente a el" in linea for linea in codigo)

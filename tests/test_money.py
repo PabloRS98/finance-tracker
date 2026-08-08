@@ -4,7 +4,6 @@ import tempfile
 from datetime import date
 from decimal import Decimal
 
-import pytest
 from sqlalchemy import create_engine
 
 from app.models import Category, Transaction, TransactionStatus, TransactionType

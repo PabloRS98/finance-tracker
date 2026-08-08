@@ -4,7 +4,7 @@ import logging
 import os
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,8 +13,14 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import SessionLocal
 from ..models import (
-    Asset, AssetType, Currency, NetWorthIntraday, NetWorthSnapshot, SnapshotSource, Watchlist,
-    currency_from_code, utcnow,
+    Asset,
+    AssetType,
+    NetWorthIntraday,
+    NetWorthSnapshot,
+    SnapshotSource,
+    Watchlist,
+    currency_from_code,
+    utcnow,
 )
 from . import alertas, classify, market_data
 from .history import refresh_price_history

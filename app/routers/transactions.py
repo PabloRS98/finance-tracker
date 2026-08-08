@@ -2,10 +2,11 @@
 importación CSV del banco, entrada por voz y gestión de pendientes."""
 import csv
 import io
-from datetime import datetime, date as date_cls
+from datetime import date as date_cls
+from datetime import datetime
 from math import ceil
 
-from fastapi import APIRouter, Depends, Form, Request, UploadFile, File
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -14,7 +15,7 @@ from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptInt
-from ..models import Operation, OperationType, Transaction, TransactionType, TransactionStatus, Category
+from ..models import Category, Operation, OperationType, Transaction, TransactionStatus, TransactionType
 from ..services import market_data
 from ..services.voice_parser import guess_category, parse_voice_operation, parse_voice_text
 from ..templating import dinero, templates
@@ -283,7 +284,8 @@ async def voice_transaction(request: Request, db: Session = Depends(get_db)):
     if parsed["amount"] is None or parsed["amount"] <= 0:
         return {
             "ok": False,
-            "error": 'No he entendido el importe en "%s". Repite indicando la cantidad, p. ej. "15 euros".' % text,
+            "error": 'No he entendido el importe en "%s". Repite indicando la cantidad, '
+                     'p. ej. "15 euros".' % text,
         }
 
     # Transaction.amount va SIEMPRE en la moneda base: si se dictó en otra divisa

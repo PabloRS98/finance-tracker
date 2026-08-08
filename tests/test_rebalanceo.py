@@ -8,7 +8,13 @@ from datetime import date
 import pytest
 
 from app.models import (
-    Asset, AssetType, Currency, Operation, OperationType, PesoObjetivo, TransactionStatus,
+    Asset,
+    AssetType,
+    Currency,
+    Operation,
+    OperationType,
+    PesoObjetivo,
+    TransactionStatus,
 )
 from app.services.rebalanceo import plan, reparto_de_aportacion
 

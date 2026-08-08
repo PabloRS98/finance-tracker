@@ -7,7 +7,7 @@ APIs gratuitas, sin necesidad de API key:
 - CoinGecko API pública para criptomonedas.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from urllib.parse import quote
 
@@ -129,8 +129,11 @@ def parse_yahoo_intraday(result: dict) -> list[tuple[datetime, float]]:
     _, norm = normalize_quote_currency(1.0, quote_currency)
     scale = 0.01 if (quote_currency and norm == "GBP" and quote_currency != "GBP") else 1.0
     return [
-        (datetime.fromtimestamp(ts, tz=timezone.utc), float(close) * scale)
-        for ts, close in zip(timestamps, closes)
+        (datetime.fromtimestamp(ts, tz=UTC), float(close) * scale)
+        # strict=False: Yahoo devuelve a veces un cierre menos que marcas de
+        # tiempo, y lo que sobra es la vela en curso. Cortar por la más corta es
+        # lo correcto aquí; con strict=True esto lanzaría.
+        for ts, close in zip(timestamps, closes, strict=False)
         if close is not None
     ]
 
@@ -154,7 +157,7 @@ def get_crypto_intraday(coingecko_id: str, vs_currency: str) -> list[tuple[datet
         )
         resp.raise_for_status()
         return [
-            (datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc), float(price))
+            (datetime.fromtimestamp(ts_ms / 1000, tz=UTC), float(price))
             for ts_ms, price in resp.json().get("prices", [])
         ]
     except Exception:
@@ -179,7 +182,7 @@ def get_exchange_rate(from_currency: str, to_currency: str) -> float | None:
 
     key = (from_currency, to_currency)
     cached = _fx_cache.get(key)
-    if cached and (datetime.now(timezone.utc) - cached[1]).total_seconds() < _FX_CACHE_TTL_SECONDS:
+    if cached and (datetime.now(UTC) - cached[1]).total_seconds() < _FX_CACHE_TTL_SECONDS:
         return cached[0]
 
     try:
@@ -189,7 +192,7 @@ def get_exchange_rate(from_currency: str, to_currency: str) -> float | None:
         )
         resp.raise_for_status()
         rate = float(resp.json()["rates"][to_currency])
-        _fx_cache[key] = (rate, datetime.now(timezone.utc))
+        _fx_cache[key] = (rate, datetime.now(UTC))
         return rate
     except Exception:
         logger.exception("Fallo al obtener tipo de cambio %s->%s", from_currency, to_currency)
@@ -245,7 +248,9 @@ def get_stock_price(ticker: str) -> dict | None:
             return None
         prev_close = meta.get("regularMarketPreviousClose") or meta.get("chartPreviousClose")
         price, currency = normalize_quote_currency(float(price), meta.get("currency"))
-        prev_close, _ = normalize_quote_currency(float(prev_close) if prev_close else None, meta.get("currency"))
+        prev_close, _ = normalize_quote_currency(
+            float(prev_close) if prev_close else None, meta.get("currency")
+        )
         return {
             "price": price,
             "currency": currency,

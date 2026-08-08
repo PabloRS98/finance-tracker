@@ -9,7 +9,10 @@ from ..flash import redirect_flash
 from ..models import Asset, AssetType, Benchmark, Operation, PesoObjetivo, PriceHistory, TransactionStatus
 from ..services import market_data, rebalanceo
 from ..services.history import (
-    benchmark_series, benchmarks_configurados, cagr_from_evolution, clave_de_simbolo,
+    benchmark_series,
+    benchmarks_configurados,
+    cagr_from_evolution,
+    clave_de_simbolo,
     portfolio_evolution,
 )
 from ..services.rendimiento import rendimiento_por_ano, xirr_de_la_cartera

@@ -119,7 +119,7 @@ def test_los_escalones_se_distinguen_entre_si():
     el mismo tamaño escrito de dos formas."""
     valores = [float(_token(t).replace("rem", "")) for t in ESCALA]
 
-    for grande, pequeno in zip(valores, valores[1:]):
+    for grande, pequeno in zip(valores, valores[1:], strict=False):
         assert grande / pequeno >= 1.12, "%s y %s no se distinguen" % (grande, pequeno)
 
 

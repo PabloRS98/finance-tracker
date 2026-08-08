@@ -10,7 +10,11 @@ from ..flash import redirect_flash
 from ..forms import OptInt
 from ..models import Category, Currency, RecurringTransaction, TransactionType
 from ..services.recurring import (
-    FREQUENCIES, coste_mensual, generate_due_transactions, next_due_date, resumen_mensual,
+    FREQUENCIES,
+    coste_mensual,
+    generate_due_transactions,
+    next_due_date,
+    resumen_mensual,
 )
 from ..templating import templates
 
@@ -127,7 +131,9 @@ def delete_recurring(rule_id: int, db: Session = Depends(get_db)):
     if rule:
         db.delete(rule)
         db.commit()
-    return redirect_flash("/recurrentes", "Recurrente eliminada (sus transacciones ya generadas se conservan)", "info")
+    return redirect_flash(
+        "/recurrentes", "Recurrente eliminada (sus transacciones ya generadas se conservan)", "info",
+    )
 
 
 @router.post("/generar")

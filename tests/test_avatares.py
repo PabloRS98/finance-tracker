@@ -8,7 +8,6 @@ import pytest
 from app.models import Asset, AssetType, Currency
 from app.templating import color_activo, iniciales
 
-
 # ---------- Iniciales ----------
 
 @pytest.mark.parametrize("nombre,esperado", [

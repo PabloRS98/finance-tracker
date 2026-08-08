@@ -23,7 +23,9 @@ def parse(text: str) -> ParseResult:
         return result
 
     for raw in rows:
-        tipo_raw = _strip_accents(pick(raw, "type", "tipo", "typ", "transaction type", "tipo de transaccion").lower())
+        tipo_raw = _strip_accents(
+            pick(raw, "type", "tipo", "typ", "transaction type", "tipo de transaccion").lower()
+        )
         if not tipo_raw:
             result.skip("sin tipo")
             continue
@@ -58,7 +60,8 @@ def parse(text: str) -> ParseResult:
         row.name = pick(raw, "name", "nombre", "note", "nota", "description", "descripcion",
                         "instrument", "instrumento", "asset", "activo") or (row.isin or row.ticker or "")
         qty = to_float(pick(raw, "shares", "anzahl", "cantidad", "titulos", "quantity", "units"))
-        row.quantity = abs(qty) if qty is not None else None  # TR exporta ventas con cantidad negativa; el signo lo da el tipo
+        # TR exporta ventas con cantidad negativa; el signo lo da el tipo
+        row.quantity = abs(qty) if qty is not None else None
         row.unit_price = to_float(pick(raw, "price", "precio", "preis", "kurs", "price per share",
                                        "precio por accion"))
         fee = to_float(pick(raw, "fee", "fees", "comision", "comisiones", "gebuhr", "gebuhren"))

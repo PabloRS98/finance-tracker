@@ -25,11 +25,13 @@ logger = logging.getLogger(__name__)
 # cualquier cosa con "World"/"Global" solo al final.
 REGION_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"emerging|emergente", re.I), "Emergentes"),
-    (re.compile(r"s\s*&\s*p\s*500|sp\s*500|nasdaq|russell|dow\s*jones|\busa?\b|u\.s\.|estados unidos|north america", re.I), "EE. UU."),
+    (re.compile(r"s\s*&\s*p\s*500|sp\s*500|nasdaq|russell|dow\s*jones|\busa?\b|u\.s\.|"
+                r"estados unidos|north america", re.I), "EE. UU."),
     (re.compile(r"jap[oó]n|(?<!ex-)(?<!ex )japan|nikkei|topix", re.I), "Japón"),
     (re.compile(r"\bchina\b|csi\s*300|hang\s*seng|\bhong\s*kong\b", re.I), "China"),
     (re.compile(r"\basia\b|pacific", re.I), "Asia"),
-    (re.compile(r"euro\s*stoxx|stoxx\s*600|\beurope\b|europa|\bdax\b|\bibex\b|\bcac\b|ftse\s*100|\bmib\b", re.I), "Europa"),
+    (re.compile(r"euro\s*stoxx|stoxx\s*600|\beurope\b|europa|\bdax\b|\bibex\b|\bcac\b|"
+                r"ftse\s*100|\bmib\b", re.I), "Europa"),
     (re.compile(r"\bworld\b|acwi|all[- ]?country|all[- ]?world|global|developed", re.I), "Global"),
 ]
 
@@ -130,7 +132,9 @@ def autofill(asset: Asset, stock_meta: dict | None = None) -> bool:
 
     if asset.sector is None:
         sector = sector_from_name(asset.name)
-        if sector is None and asset.ticker and (stock_meta is None or stock_meta.get("instrument_type") == "EQUITY"):
+        if sector is None and asset.ticker and (
+            stock_meta is None or stock_meta.get("instrument_type") == "EQUITY"
+        ):
             sector = yahoo_sector(asset.ticker)
         if sector:
             asset.sector = sector

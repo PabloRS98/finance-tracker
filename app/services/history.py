@@ -11,14 +11,20 @@
 """
 import logging
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..models import (
-    Asset, AssetType, Benchmark, NetWorthSnapshot, Operation, OperationType, PriceHistory,
+    Asset,
+    AssetType,
+    Benchmark,
+    NetWorthSnapshot,
+    Operation,
+    OperationType,
+    PriceHistory,
     TransactionStatus,
 )
 from . import market_data
@@ -53,8 +59,8 @@ def fetch_stock_history(ticker: str, start: date) -> dict[date, float]:
     try:
         from datetime import time
 
-        period1 = int(datetime.combine(start, time.min, tzinfo=timezone.utc).timestamp())
-        period2 = int(datetime.now(timezone.utc).timestamp())
+        period1 = int(datetime.combine(start, time.min, tzinfo=UTC).timestamp())
+        period2 = int(datetime.now(UTC).timestamp())
         result = market_data.yahoo_chart(ticker, {"period1": period1, "period2": period2, "interval": "1d"})
         timestamps = result.get("timestamp") or []
         closes = (result.get("indicators", {}).get("quote") or [{}])[0].get("close") or []
@@ -63,10 +69,12 @@ def fetch_stock_history(ticker: str, start: date) -> dict[date, float]:
         _, norm_currency = market_data.normalize_quote_currency(1.0, quote_currency)
         scale = 0.01 if (quote_currency and norm_currency == "GBP" and quote_currency != "GBP") else 1.0
         out: dict[date, float] = {}
-        for ts, close in zip(timestamps, closes):
+        # strict=False: Yahoo puede devolver un cierre menos que marcas de
+        # tiempo (la vela en curso). Cortar por la más corta es lo que toca.
+        for ts, close in zip(timestamps, closes, strict=False):
             if close is not None:
                 # epoch es UTC: fijar la zona para no correr el día según la TZ del contenedor
-                out[datetime.fromtimestamp(ts, tz=timezone.utc).date()] = float(close) * scale
+                out[datetime.fromtimestamp(ts, tz=UTC).date()] = float(close) * scale
         return out
     except Exception:
         logger.exception("Fallo al obtener histórico de %s", ticker)
@@ -86,7 +94,7 @@ def fetch_crypto_history(coingecko_id: str, vs_currency: str, start: date) -> di
         resp.raise_for_status()
         out: dict[date, float] = {}
         for ts_ms, price in resp.json().get("prices", []):
-            out[datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).date()] = float(price)
+            out[datetime.fromtimestamp(ts_ms / 1000, tz=UTC).date()] = float(price)
         return out
     except Exception:
         logger.exception("Fallo al obtener histórico de cripto %s", coingecko_id)
@@ -275,7 +283,7 @@ def portfolio_evolution(db: Session) -> list[dict]:
     # Cantidad acumulada por activo y día (pasos en las fechas de operación)
     assets = {a.id: a for a in db.query(Asset).filter(Asset.id.in_({o.asset_id for o in ops})).all()}
     qty_steps: dict[int, dict[date, float]] = {aid: {} for aid in assets}
-    running: dict[int, float] = {aid: 0.0 for aid in assets}
+    running: dict[int, float] = dict.fromkeys(assets, 0.0)
     op_price_steps: dict[int, dict[date, float]] = {aid: {} for aid in assets}
     for op in ops:
         delta = op.quantity if op.type == OperationType.COMPRA else -op.quantity
@@ -294,7 +302,7 @@ def portfolio_evolution(db: Session) -> list[dict]:
             )
         return fx_by_currency[currency]
 
-    invested_by_day: dict[date, float] = {d: 0.0 for d in timeline}
+    invested_by_day: dict[date, float] = dict.fromkeys(timeline, 0.0)
     for aid, asset in assets.items():
         quantities = _forward_filled(qty_steps[aid], timeline)
         # Precio: cierres de mercado; huecos (o falta de ticker) se cubren con el
@@ -306,7 +314,10 @@ def portfolio_evolution(db: Session) -> list[dict]:
             merged[today] = asset.current_price
         prices = _forward_filled(merged, timeline)
 
-        asset_fx = fx_series_for(asset.currency.value) if asset.currency.value != settings.base_currency else None
+        asset_fx = (
+            fx_series_for(asset.currency.value)
+            if asset.currency.value != settings.base_currency else None
+        )
         for day in timeline:
             qty = quantities.get(day, 0.0)
             price = prices.get(day)
@@ -419,7 +430,10 @@ def eur_usd_snapshot(db: Session) -> dict:
     # Punto de hoy con el tipo en vivo, para que la curva llegue al presente
     if not points or points[-1]["fecha"] < today:
         points.append({"fecha": today, "rate": round(rate, 4)})
-    return {"rate": rate, "change_pct": change_pct, "change_pct_weekly": change_pct_weekly, "phrase": phrase, "points": points}
+    return {
+        "rate": rate, "change_pct": change_pct, "change_pct_weekly": change_pct_weekly,
+        "phrase": phrase, "points": points,
+    }
 
 
 def benchmark_series(db: Session) -> dict[str, dict]:

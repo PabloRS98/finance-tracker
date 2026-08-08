@@ -17,6 +17,24 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A9] Linter en el proyecto y en el CI
+
+Era la aplicación más grande de las tres y la única sin linter. Se añade ruff
+con la configuración de `projects-dashboard`, que es la más estricta, y un job
+propio en el CI: un fallo de estilo y un test roto son cosas distintas, y verlos
+separados dice de un vistazo cuál de las dos ha pasado.
+
+Al activarlo salieron **74 avisos**. 49 se corrigieron solos (orden de imports,
+`datetime.UTC`, comprensiones, imports sin usar) y el resto a mano, casi todo
+líneas largas. Dos quedan documentados en `per-file-ignores`: el `import re` a
+media altura de `imports.py`, que tiene hallazgo propio, y el bloque de imports
+de `test_sistema_visual.py`, que va detrás de la explicación a propósito.
+
+Ninguno era un fallo de comportamiento, pero tres variables sin usar del
+importador de PDF resultaron ser documentación del formato: se conservan con el
+motivo escrito, porque el parseo es posicional y sin los nombres delante un
+error de columna es invisible.
+
 ### [FT-M6] Borrar una categoría desasigna lo que la usaba
 
 Antes quedaban transacciones y recurrentes con un `category_id` que no llevaba a

@@ -22,11 +22,11 @@ def frozen_today(monkeypatch):
 
 
 def _add(db, **kw):
-    base = dict(
-        name="Regla", type=TransactionType.GASTO, amount=100.0,
-        currency=Currency.EUR, interval_months=1, day_of_month=1,
-        start_date=_date(2026, 1, 1),
-    )
+    base = {
+        "name": "Regla", "type": TransactionType.GASTO, "amount": 100.0,
+        "currency": Currency.EUR, "interval_months": 1, "day_of_month": 1,
+        "start_date": _date(2026, 1, 1),
+    }
     base.update(kw)
     rule = RecurringTransaction(**base)
     db.add(rule)

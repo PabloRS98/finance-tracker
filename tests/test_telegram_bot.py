@@ -5,12 +5,22 @@ from datetime import date, timedelta
 import pytest
 
 from app.models import (
-    Asset, AssetType, Currency, Operation, OperationType, PriceHistory, Transaction,
-    TransactionStatus, TransactionType,
+    Asset,
+    AssetType,
+    Currency,
+    Operation,
+    OperationType,
+    PriceHistory,
+    Transaction,
+    TransactionStatus,
+    TransactionType,
 )
 from app.services import market_data
 from app.services.telegram_bot import (
-    DIAS_SEMANA, build_summary, handle_callback, process_text,
+    DIAS_SEMANA,
+    build_summary,
+    handle_callback,
+    process_text,
 )
 
 
