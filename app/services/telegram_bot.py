@@ -253,6 +253,7 @@ def _positions_grouped(db: Session, total_eur: float) -> list[str]:
         .all()
     )
     rows = []
+    sin_cambio: list[str] = []
     for a in assets:
         s = asset_summary(a)
         qty = s.get("quantity")
@@ -261,9 +262,19 @@ def _positions_grouped(db: Session, total_eur: float) -> list[str]:
         # aparecía en el resumen como una posición viva de cero unidades.
         if not qty or qty <= 1e-9:
             continue
-        # Valor actual estimado en EUR de esta posición
-        value_eur = (a.current_price or 0) * qty
-        alloc = (value_eur / total_eur * 100) if total_eur > 0 else 0
+        # El peso se calcula contra `total_eur`, que YA viene convertido a la
+        # moneda base. Antes el numerador se dejaba en la divisa del activo:
+        # se dividían peras entre manzanas y una posición en dólares aparecía
+        # con un peso ~8 % por debajo del real, inflando todas las demás.
+        rate = market_data.get_exchange_rate(a.currency.value, settings.base_currency)
+        if rate is None:
+            # Fuera del agregado antes que contarlo 1:1, igual que hace
+            # portfolio_totals: un peso falso contamina la decisión de
+            # rebalanceo y no deja rastro de que estaba mal.
+            sin_cambio.append(a.name)
+            continue
+        value_base = (a.current_price or 0) * qty * rate
+        alloc = (value_base / total_eur * 100) if total_eur > 0 else 0
         rows.append((a, s, alloc))
 
     # Agrupar
@@ -319,6 +330,12 @@ def _positions_grouped(db: Session, total_eur: float) -> list[str]:
                 )
             lines.append("│%s%s│" % (inner, " " * max(0, BOX_W - len(inner) + 1)))
         lines.append("└" + "─" * (BOX_W + 1) + "┘")
+        lines.append("")
+
+    if sin_cambio:
+        # Un porcentaje que no suma 100 sin explicación es peor que uno que
+        # falta: si se han dejado posiciones fuera, hay que decirlo.
+        lines.append("⚠️ Sin tipo de cambio, fuera del reparto: %s" % _esc(", ".join(sin_cambio)))
         lines.append("")
 
     return lines
