@@ -158,11 +158,15 @@ def process_text(db: Session, text: str) -> tuple[str, dict | None]:
     origen = ""
     if parsed["currency"] != settings.base_currency:
         origen = " (%s %s)" % (dinero(parsed["amount"]), parsed["currency"])
-    reply = "%s <b>%s %s</b>%s%s · %s\n¿Lo apunto?" % (
+    # Si el importe salió del último patrón —un entero suelto, sin moneda— hay
+    # que decirlo: confirmar es un solo toque, y "la calle 5" se apunta como 5 €
+    # con la misma seguridad aparente que un importe dictado bien.
+    duda = "\n¿Seguro? No he visto la moneda." if parsed.get("confianza") == "baja" else ""
+    reply = "%s <b>%s %s</b>%s%s · %s%s\n¿Lo apunto?" % (
         "💰 Ingreso" if parsed["type"] == "ingreso" else "💸 Gasto",
         dinero(amount), settings.base_currency, origen,
         " · %s" % _esc(parsed["category_name"]) if parsed["category_name"] else "",
-        parsed["date"].strftime("%d/%m/%Y"),
+        parsed["date"].strftime("%d/%m/%Y"), duda,
     )
     return reply, _buttons("tx", tx.id)
 

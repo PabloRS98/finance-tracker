@@ -332,4 +332,8 @@ async def voice_transaction(request: Request, db: Session = Depends(get_db)):
     if parsed["category_name"]:
         resumen += " · %s" % parsed["category_name"]
     resumen += " · %s" % tx.date.strftime("%d/%m/%Y")
+    if parsed.get("confianza") == "baja":
+        # El importe salió del último patrón: un entero suelto, sin moneda. Se
+        # dice, porque la transacción queda PENDIENTE y confirmarla es un clic.
+        resumen += " · ¿seguro? no he visto la moneda"
     return {"ok": True, "transaction_id": tx.id, "summary": resumen}
