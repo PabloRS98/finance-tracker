@@ -84,9 +84,13 @@ def _fx_for(db: Session, asset: Asset, cache: dict[str, FxLookup | None]) -> FxL
 def _row_for(asset: Asset, fx_on: FxLookup | None = None, exposure_fx: FxLookup | None = None) -> dict:
     """Fila de un activo: valor en su divisa y en la base, más el resumen de la
     posición (cantidad/coste medio/P&L/efecto divisa) si es invertible."""
-    value = asset.current_value()
     rate = market_data.get_exchange_rate(asset.currency.value, settings.base_currency)
     summary = asset_summary(asset, fx_on, exposure_fx) if asset.asset_type in INVERTIBLE else None
+    # El valor sale del resumen cuando lo hay: `asset_summary` ya valoró la
+    # posición, y volver a pedírselo al modelo repetía `compute_position` —que
+    # además ordena la lista de operaciones— una vez más por activo. Para los no
+    # invertibles no hay resumen y el valor es el manual, sin cálculo detrás.
+    value = (summary["value"] or 0.0) if summary is not None else asset.current_value()
     # value_base None = sin tipo de cambio; el filtro `dinero` lo pinta como "-"
     return {
         "asset": asset, "value": value, "summary": summary,
