@@ -113,6 +113,10 @@ class Valuation:
 
     total: float = 0.0
     missing: set[str] = field(default_factory=set)
+    # Lo mismo repartido por tipo de activo, en la misma pasada. El dashboard lo
+    # necesitaba y antes recorría los activos otra vez, pidiendo de nuevo un
+    # tipo de cambio por activo: mismo trabajo, hecho dos veces.
+    por_tipo: dict[AssetType, float] = field(default_factory=dict)
 
     @property
     def complete(self) -> bool:
@@ -128,7 +132,10 @@ def _value_assets(assets, base: str) -> Valuation:
         if rate is None:
             result.missing.add(currency)
             continue
-        result.total += asset.current_value() * rate
+        valor = asset.current_value() * rate
+        result.total += valor
+        if valor > 0:
+            result.por_tipo[asset.asset_type] = result.por_tipo.get(asset.asset_type, 0.0) + valor
     result.total = round(result.total, 2)
     return result
 
