@@ -17,6 +17,16 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-M12] Fuera las listas mutables como valor por defecto
+
+Dos endpoints declaraban una lista literal como `default`. Hoy no hay bug —
+FastAPI trata eso como declaración de parámetro y construye una lista nueva en
+cada petición—, pero es exactamente el patrón que se convierte en un fallo muy
+difícil de diagnosticar en cuanto alguien copia la firma a una función normal:
+los datos de una petición aparecen en la siguiente.
+
+Se cambia a `default_factory` y quedan tests que fijan que no reaparezca.
+
 ### [FT-M11] `next_due_date` deja de proponer cargos imposibles
 
 El generador de ocurrencias no tiene fin y el bucle no llevaba tope, así que lo

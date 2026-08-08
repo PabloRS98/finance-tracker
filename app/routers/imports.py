@@ -263,7 +263,9 @@ async def import_preview(
 @router.post("/confirmar")
 def import_confirm(
     account_id: OptInt = None,
-    rows: list[str] = Form([]),
+    # Ver el comentario de merge_assets: default_factory en vez de una lista
+    # literal, que es el patrón que acaba compartiendo estado entre peticiones.
+    rows: list[str] = Form(default_factory=list),
     db: Session = Depends(get_db),
 ):
     if not rows:
