@@ -3,7 +3,7 @@ compras/ventas y gastos/ingresos por mensaje de texto o nota de voz.
 
 Funciona por long polling (getUpdates) en un hilo de fondo del lifespan: nada
 queda expuesto a internet (local-first). Solo atiende al chat configurado en
-FINANCE_TELEGRAM_CHAT_ID; a cualquier otro chat le responde una única cosa: su
+TELEGRAM_CHAT_ID; a cualquier otro chat le responde una única cosa: su
 chat_id, para poder configurarlo la primera vez.
 
 Lo que llega se interpreta con el mismo parser que la voz del navegador
@@ -448,7 +448,7 @@ def _handle_message(msg: dict) -> None:
         # Bootstrap: sin chat autorizado, lo único que hace el bot es decirte tu id
         logger.info("Telegram sin chat_id configurado; mensaje recibido de chat_id=%s", chat_id)
         telegram.send_message(
-            "👋 Tu chat_id es <code>%s</code>. Ponlo en FINANCE_TELEGRAM_CHAT_ID "
+            "👋 Tu chat_id es <code>%s</code>. Ponlo en TELEGRAM_CHAT_ID "
             "del .env y reinicia la app para activarme." % chat_id,
             chat_id=chat_id,
         )
@@ -525,7 +525,7 @@ def _poll_loop() -> None:
 def start_bot() -> threading.Thread | None:
     """Arranca el hilo de polling si hay token. Hilo daemon: muere con la app."""
     if not settings.telegram_bot_token:
-        logger.info("Bot de Telegram desactivado (sin FINANCE_TELEGRAM_BOT_TOKEN)")
+        logger.info("Bot de Telegram desactivado (sin TELEGRAM_BOT_TOKEN)")
         return None
     _stop.clear()
     thread = threading.Thread(target=_poll_loop, name="telegram-bot", daemon=True)

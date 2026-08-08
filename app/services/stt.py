@@ -1,6 +1,6 @@
 """Transcripción local de notas de voz con faster-whisper (sin APIs, sin coste).
 
-El modelo (FINANCE_WHISPER_MODEL, por defecto "small") se descarga una única vez
+El modelo (WHISPER_MODEL, por defecto "small") se descarga una única vez
 a /data/whisper (persiste en el volumen entre rebuilds) y se carga perezosamente
 en la primera nota de voz: el arranque de la app no lo paga."""
 import logging

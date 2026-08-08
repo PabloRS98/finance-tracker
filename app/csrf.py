@@ -25,6 +25,8 @@ import secrets
 from fastapi import HTTPException, Request, status
 from markupsafe import Markup
 
+from .config import settings
+
 COOKIE_NAME = "csrftoken"
 FORM_FIELD = "_csrf"
 HEADER_NAME = "X-CSRF-Token"
@@ -45,12 +47,17 @@ def issue_token(request: Request) -> str:
 
 
 def set_cookie(response, token: str) -> None:
-    """Fija la cookie del token. `secure=False` a propósito: la app se sirve por
-    HTTP en LAN/VPN y con secure el navegador no la guardaría. Detrás de HTTPS
-    conviene ponerlo a True."""
+    """Fija la cookie del token.
+
+    `Secure` viene apagado por defecto a propósito: la app se sirve por HTTP en
+    LAN o VPN y con `Secure` el navegador no guardaría la cookie — y sin cookie
+    de CSRF no se puede enviar ningún formulario. Detrás de un proxy con TLS hay
+    que encenderlo, y ahora se hace con `COOKIES_SEGURAS=true` en el `.env` en
+    vez de editando este fichero y reconstruyendo la imagen."""
     response.set_cookie(
         COOKIE_NAME, token,
-        max_age=_MAX_AGE, path="/", httponly=True, samesite="lax", secure=False,
+        max_age=_MAX_AGE, path="/", httponly=True, samesite="lax",
+        secure=settings.cookies_seguras,
     )
 
 

@@ -1,7 +1,7 @@
 """Cliente de la API de Bot de Telegram (envío, edición, long polling y descarga
 de archivos). Si no hay token configurado, todas las funciones son no-op.
 
-El usuario crea el bot con @BotFather y mete el token en FINANCE_TELEGRAM_BOT_TOKEN;
+El usuario crea el bot con @BotFather y mete el token en TELEGRAM_BOT_TOKEN;
 el chat_id se lo dice el propio bot al escribirle (ver telegram_bot.py)."""
 import logging
 
