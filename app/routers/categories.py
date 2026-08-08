@@ -7,7 +7,7 @@ from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptFloat
-from ..models import Category
+from ..models import Category, RecurringTransaction, Transaction
 from ..templating import templates
 
 router = APIRouter(prefix="/categorias", tags=["categorias"], dependencies=[Depends(verify_auth)])
@@ -79,8 +79,29 @@ def edit_category(
 
 @router.post("/{cat_id}/eliminar")
 def delete_category(cat_id: int, db: Session = Depends(get_db)):
+    """Borra la categoría y deja sin categoría lo que la usaba.
+
+    Mismo patrón que `delete_account`: las referencias se ponen a None ANTES de
+    borrar. Si no, quedan apuntando a un id inexistente —SQLite no aplica las
+    claves foráneas—, y lo peligroso no es que se vean como "Sin categoría",
+    sino que SQLite reutiliza los ids: la siguiente categoría que se cree puede
+    recibir el de la borrada y adoptar transacciones que no le corresponden.
+    """
     cat = db.get(Category, cat_id)
-    if cat:
-        db.delete(cat)
-        db.commit()
-    return redirect_flash("/categorias", "Categoría eliminada", "info")
+    if not cat:
+        return redirect_flash("/categorias", "Categoría eliminada", "info")
+
+    afectadas = db.query(Transaction).filter(Transaction.category_id == cat_id).update(
+        {"category_id": None}
+    )
+    db.query(RecurringTransaction).filter(RecurringTransaction.category_id == cat_id).update(
+        {"category_id": None}
+    )
+    db.delete(cat)
+    db.commit()
+
+    if afectadas:
+        aviso = "Categoría eliminada; %d transacciones quedan sin categoría" % afectadas
+    else:
+        aviso = "Categoría eliminada"
+    return redirect_flash("/categorias", aviso, "info")

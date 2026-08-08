@@ -17,6 +17,17 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-M6] Borrar una categoría desasigna lo que la usaba
+
+Antes quedaban transacciones y recurrentes con un `category_id` que no llevaba a
+ninguna parte. La app lo toleraba —se veían como "Sin categoría"—, pero SQLite
+**reutiliza los ids**: la siguiente categoría creada podía recibir el de la
+borrada y adoptar transacciones antiguas que no eran suyas.
+
+Ahora se desasignan antes de borrar, igual que hacía `delete_account`, y el
+aviso dice cuántas quedaron sin categoría. Una migración limpia las que ya
+estaban colgando, que son justo las que podían ser adoptadas.
+
 ### [FT-A5] Los pesos de cartera del resumen de Telegram ya cuentan la divisa
 
 El comentario decía "en EUR" y el cálculo no convertía nada: multiplicaba el
