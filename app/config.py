@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     # Moneda base para totales consolidados (patrimonio, gastos, ingresos)
     base_currency: str = "EUR"
 
+    # Marca las cookies como Secure. Ponlo a true si sirves la app por HTTPS
+    # (proxy inverso con TLS); con HTTP el navegador las descartaría, y sin
+    # cookie de CSRF no se puede enviar ningún formulario.
+    #
+    # Estaba fijado en el código con un comentario que decía "detrás de HTTPS
+    # conviene ponerlo a True", lo que exigía editar el fuente y reconstruir la
+    # imagen: exactamente el tipo de cosa que nadie hace.
+    cookies_seguras: bool = False
+
     # Cuenta las sentencias SQL de cada petición y las publica en la cabecera
     # X-Consultas-SQL. Solo para diagnosticar: apagado no cuesta nada, porque
     # ni siquiera se registra el listener de SQLAlchemy.

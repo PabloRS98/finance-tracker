@@ -73,6 +73,24 @@ como próximo cargo una fecha ya pasada.
 estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
 comentario explicando por qué están donde están—, son descuidos.
 
+### [FT-M9] [FT-M17] La configuración que se documenta ahora existe
+
+**FT-M17.** El bot decía «ponlo en `FINANCE_TELEGRAM_CHAT_ID` del .env», y esa
+variable **no existe**: el nombre real es `TELEGRAM_CHAT_ID`. Quien siguiera el
+mensaje al pie de la letra no conseguía nada y no tenía forma de saber por qué
+— y ese mensaje es justo el que se lee en el momento de configurar. Lo mismo
+con el token y con el modelo de voz. Queda un test que barre las cadenas de
+`app/` y comprueba que toda variable mencionada sea un campo real.
+
+**FT-M9.** `secure=False` estaba fijado en el código, con un comentario que
+decía «detrás de HTTPS conviene ponerlo a True»: para hacerlo había que editar
+el fuente y reconstruir la imagen. Ahora es `COOKIES_SEGURAS` en el `.env`, y
+cubre también la cookie de avisos.
+
+Con un aviso que no era obvio y ahora está escrito y probado: activarlo
+sirviendo por HTTP hace que el navegador descarte la cookie, el token de CSRF
+no vuelva y **todos** los formularios empiecen a dar 403.
+
 ### [FT-M7] [FT-M14] Coherencia entre capas y entre pantallas
 
 **FT-M7.** La normalización de nombres para comparación aproximada vivía en el

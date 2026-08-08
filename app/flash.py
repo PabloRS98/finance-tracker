@@ -5,6 +5,8 @@ from urllib.parse import quote
 
 from fastapi.responses import RedirectResponse
 
+from .config import settings
+
 
 def redirect_flash(
     url: str, message: str, category: str = "success", status_code: int = 303,
@@ -17,5 +19,8 @@ def redirect_flash(
         max_age=8,
         path="/",
         samesite="lax",
+        # Misma configuración que la cookie de CSRF: si la app va detrás de TLS,
+        # tampoco tiene sentido que esta viaje sin marcar.
+        secure=settings.cookies_seguras,
     )
     return response
