@@ -11,6 +11,30 @@ lo que no se deduce leyendo el diff.
 
 ---
 
+## Sin publicar
+
+Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el ID
+del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
+motivo sin adivinarlo.
+
+### [FT-C2] La autenticación aguanta contraseñas con tildes
+
+`secrets.compare_digest` sobre `str` exige ASCII puro: con
+`AUTH_PASSWORD=contraseña` —lo más natural, estando el `.env.example` en
+español— unas credenciales incorrectas lanzaban `TypeError` y el manejador
+global lo servía como la página "Algo ha fallado". Un 500 donde tocaba un 401.
+
+Y la contraseña **correcta** tampoco entraba: `fastapi.security.HTTPBasic`
+decodifica la cabecera con `.decode("ascii")` y la rechazaba antes de llegar a
+compararse. El usuario quedaba fuera de su propia app sin ninguna pista, y la
+salida evidente —desactivar `ENABLE_AUTH` para poder entrar— deja la aplicación
+del patrimonio abierta en la LAN.
+
+Ahora la cabecera se parsea a mano decodificando en UTF-8 y la comparación va
+sobre bytes. Es la versión que `media-catalog` ya tenía escrita y comentada.
+
+---
+
 ## 1.0.0 — 2026-08-02
 
 Primera versión estable. La app lleva tiempo en uso diario contra datos reales;
