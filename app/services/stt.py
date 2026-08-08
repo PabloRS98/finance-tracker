@@ -37,10 +37,14 @@ def transcribe(audio: bytes) -> str | None:
     None si falla la carga del modelo o la transcripción."""
     try:
         model = _get_model()
-        with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp:
-            tmp.write(audio)
-            path = tmp.name
+        # El try/finally empieza en cuanto el fichero existe, no después de
+        # escribirlo: si la escritura falla —disco lleno, audio enorme— el
+        # temporal se quedaba huérfano para siempre, porque el `finally` que lo
+        # borra se abría más abajo.
+        fd, path = tempfile.mkstemp(suffix=".ogg")
         try:
+            with os.fdopen(fd, "wb") as tmp:
+                tmp.write(audio)
             segments, _info = model.transcribe(path, language="es", vad_filter=True)
             text = " ".join(s.text.strip() for s in segments).strip()
             return text or None

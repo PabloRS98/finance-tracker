@@ -35,7 +35,11 @@ HEADER_NAME = "X-CSRF-Token"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
 
 _TOKEN_BYTES = 32
-_MAX_AGE = 60 * 60 * 12  # 12 h; se renueva sola en la siguiente visita
+# 12 h: más que una sesión de uso normal y menos que un día, así que un
+# formulario abierto y olvidado desde ayer no se envía con un token caducado
+# —que daría un 403 sin explicación— y a la vez el token no vive indefinidamente.
+# Se renueva sola en la siguiente visita, así que en uso diario nunca expira.
+_MAX_AGE = 60 * 60 * 12
 
 
 def issue_token(request: Request) -> str:

@@ -22,6 +22,21 @@ ignore = [
     "UP031",  # el formato con % es el estilo consistente del proyecto
 ]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Necesario para que `pytest` a secas encuentre el paquete `app`: el ejecutable
+# no añade el directorio actual a sys.path (`python -m pytest` sí, y por eso
+# esto no se nota en local hasta que el CI se pone en rojo).
+pythonpath = ["."]
+# `--strict-markers` evita que una marca mal escrita se ignore en silencio: sin
+# esto, un `@pytest.mark.lentto` no falla, simplemente no hace nada.
+addopts = "--strict-markers"
+filterwarnings = [
+    # Los avisos de deprecación de las dependencias son ruido en cada ejecución
+    # y no dicen nada del código propio; los del código propio sí interesan.
+    "ignore::DeprecationWarning",
+]
+
 [tool.ruff.lint.per-file-ignores]
 # El módulo abre con un bloque largo que explica por qué existen estos tests, y
 # los imports van detrás a propósito: el porqué se lee antes que el cómo.

@@ -137,6 +137,12 @@ def dinero(value) -> str:
     if value is None:
         return "-"
     formatted = f"{float(value):,.2f}"
+    # Python formatea a la inglesa (1,234,567.50) y aquí se escribe al revés.
+    # El rodeo por "X" es para no pisarse: cambiar "," por "." primero dejaría
+    # los separadores de millar convertidos en decimales. Se hace a mano y no
+    # con `locale` porque el contenedor corre en locale C y no tiene los datos
+    # de es_ES instalados; y no con Babel porque sería una dependencia entera
+    # para dos líneas.
     return formatted.replace(",", "X").replace(".", ",").replace("X", ".")
 
 

@@ -34,7 +34,7 @@ def clamped_date(year: int, month: int, day: int) -> date:
     return date(year, month, min(day, calendar.monthrange(year, month)[1]))
 
 
-def _add_months(year: int, month: int, n: int) -> tuple[int, int]:
+def sumar_meses(year: int, month: int, n: int) -> tuple[int, int]:
     total = year * 12 + (month - 1) + n
     return total // 12, total % 12 + 1
 
@@ -49,7 +49,7 @@ def _occurrences(rule: RecurringTransaction):
     step = _interval(rule)
     k = 0
     while True:
-        year, month = _add_months(rule.start_date.year, rule.start_date.month, k * step)
+        year, month = sumar_meses(rule.start_date.year, rule.start_date.month, k * step)
         yield clamped_date(year, month, rule.day_of_month)
         k += 1
 

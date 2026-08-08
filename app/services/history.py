@@ -31,6 +31,11 @@ from . import market_data
 
 logger = logging.getLogger(__name__)
 
+# Backfill del histórico: cinco años en días. Aproximado a propósito —no cuenta
+# bisiestos— porque lo único que decide es hasta dónde pedir cierres, y una
+# semana arriba o abajo no cambia el rango 5A de la ficha.
+DIAS_DE_BACKFILL = 5 * 365
+
 FRANKFURTER_SERIES_URL = "https://api.frankfurter.dev/v1"
 COINGECKO_CHART_URL = "https://api.coingecko.com/api/v3/coins/%s/market_chart"
 COINGECKO_MAX_DAYS = 365  # límite de histórico de la API gratuita
@@ -185,7 +190,7 @@ def refresh_price_history(db: Session) -> None:
         else:
             # Acciones: además del tramo incremental, un backfill único hasta 5 años
             # atrás (para el rango 5A de la ficha); _store deduplica, es idempotente
-            desired_start = min(since, date.today() - timedelta(days=5 * 365))
+            desired_start = min(since, date.today() - timedelta(days=DIAS_DE_BACKFILL))
             earliest = _earliest_stored(db, asset.ticker)
             if earliest is None or earliest > desired_start + timedelta(days=7):
                 since = desired_start
