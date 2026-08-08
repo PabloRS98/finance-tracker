@@ -4,7 +4,6 @@ Flujo sin estado en servidor: el preview serializa cada fila parseada como JSON
 en un campo oculto del formulario; al confirmar se re-validan las filas y los
 duplicados (import_hash) antes de crear nada."""
 import json
-import re
 from datetime import UTC, datetime
 from datetime import date as date_cls
 
@@ -18,6 +17,7 @@ from ..forms import OptInt
 from ..models import CURRENCY_CODES, Account, Asset, AssetType, Currency, Operation, OperationType
 from ..services import market_data
 from ..services.importers import IMPORTERS, ParsedRow
+from ..services.nombres import normalizar_nombre
 from ..templating import templates
 from ..uploads import MAX_CSV_BYTES, MAX_PDF_BYTES, leer_limitado
 
@@ -74,20 +74,6 @@ def _existing_hashes(db: Session) -> set[str]:
     return {h for (h,) in db.query(Operation.import_hash).filter(Operation.import_hash.isnot(None)).all()}
 
 
-# Patrones que se eliminan al normalizar nombres para fuzzy matching
-_RE_SUFFIX = re.compile(
-    r'\b(Inc\.?|Incorporated|Corp\.?|Corporation|Ltd\.?|Limited|'
-    r'SA\.?|S\.A\.|AG|GmbH|SE|NV|PLC|LLC|LP|'
-    r'\([A-Z]\)|Class [A-Z])\b', re.IGNORECASE
-)
-_RE_JUNK = re.compile(r'[,.()]+')
-
-def _normalize_name(name: str) -> str:
-    """Normaliza un nombre de activo para comparación fuzzy:
-    quita sufijos legales, clases de acción y puntuación."""
-    name = _RE_SUFFIX.sub('', name)
-    name = _RE_JUNK.sub(' ', name)
-    return ' '.join(name.upper().split())
 
 
 def _match_asset(row: ParsedRow, assets: list[Asset]) -> Asset | None:
@@ -110,10 +96,10 @@ def _match_asset(row: ParsedRow, assets: list[Asset]) -> Asset | None:
                 return a
     # 4. Fuzzy: nombres normalizados
     if row.name:
-        rn_norm = _normalize_name(row.name)
+        rn_norm = normalizar_nombre(row.name)
         if rn_norm:
             for a in assets:
-                if _normalize_name(a.name) == rn_norm:
+                if normalizar_nombre(a.name) == rn_norm:
                     return a
     return None
 

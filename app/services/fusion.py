@@ -13,6 +13,7 @@ que al juntarlas el resultado sale solo y sigue cuadrando con los extractos.
 from sqlalchemy.orm import Session, selectinload
 
 from ..models import Asset, AssetType, Operation
+from .nombres import normalizar_nombre
 from .portfolio import compute_position, posicion_cerrada
 
 INVERTIBLE = (AssetType.ACCION, AssetType.CRIPTO)
@@ -27,9 +28,12 @@ def _clave_ticker(asset: Asset) -> str | None:
 
 
 def _clave_nombre(asset: Asset) -> str | None:
-    from ..routers.imports import _normalize_name  # mismo criterio que al importar
-
-    normalizado = _normalize_name(asset.name or "")
+    # Mismo criterio que al importar, y por eso la función es compartida: si el
+    # importador y el detector de duplicados normalizaran distinto, un activo
+    # que el importador casa con otro no saldría después como candidato a
+    # fusión. Antes se importaba del router, con un import perezoso para evitar
+    # el ciclo; ese import era la señal de que la dependencia iba al revés.
+    normalizado = normalizar_nombre(asset.name or "")
     return normalizado or None
 
 
