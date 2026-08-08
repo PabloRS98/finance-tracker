@@ -74,17 +74,22 @@ def plan(db: Session, aportacion: float = 0.0) -> dict:
     }
 
 
-def reparto_de_aportacion(db: Session, aportacion: float) -> list[dict]:
+def reparto_de_aportacion(detalle: dict, aportacion: float) -> list[dict]:
     """Cómo repartir una aportación entre lo que está por debajo del objetivo.
 
     Se reparte proporcionalmente a lo que le falta a cada uno, y solo entre los
     que van cortos: meter dinero en el que ya sobrepasa su peso agravaría la
     desviación en vez de corregirla.
+
+    Recibe el `detalle` que devuelve `plan()` en vez de calcularlo: la vista ya
+    lo tiene, y volver a pedirlo recorría todos los invertibles otra vez,
+    reordenando la lista de operaciones de cada activo y pidiendo de nuevo un
+    tipo de cambio por divisa. No se notaba en el contador de consultas —la
+    sesión ya tiene los objetos cargados— pero el trabajo en CPU era doble.
     """
     if aportacion <= 0:
         return []
 
-    detalle = plan(db, aportacion)
     faltantes = [f for f in detalle["filas"] if f["ajuste"] > 0]
     if not faltantes:
         return []
