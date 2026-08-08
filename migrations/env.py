@@ -12,9 +12,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app import models  # noqa: F401  registra todos los modelos en Base.metadata
 from app.config import settings
 from app.database import Base
-from app import models  # noqa: F401  registra todos los modelos en Base.metadata
 
 config = context.config
 # Por defecto, la BD de la app. Si quien invoca ya fijó una URL (los tests, o un

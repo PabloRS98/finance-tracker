@@ -16,14 +16,22 @@ from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
 from ..models import (
-    Asset, AssetType, Category, NetWorthIntraday, NetWorthSnapshot, SnapshotSource,
-    Transaction, TransactionStatus, TransactionType, utcnow,
+    Asset,
+    AssetType,
+    Category,
+    NetWorthIntraday,
+    NetWorthSnapshot,
+    SnapshotSource,
+    Transaction,
+    TransactionStatus,
+    TransactionType,
+    utcnow,
 )
 from ..services import market_data
 from ..services.history import benchmark_series, cagr_from_evolution, eur_usd_snapshot, portfolio_evolution
 from ..services.portfolio import portfolio_totals
-from ..services.xray import invested_rows
 from ..services.scheduler import backup_database, compute_net_worth
+from ..services.xray import invested_rows
 from ..templating import templates
 
 router = APIRouter(tags=["dashboard"], dependencies=[Depends(verify_auth)])
@@ -126,11 +134,16 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         fin = date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)
         txs = (
             db.query(Transaction)
-            .filter(Transaction.date >= inicio, Transaction.date < fin, Transaction.status == TransactionStatus.CONFIRMADO)
+            .filter(
+                Transaction.date >= inicio, Transaction.date < fin,
+                Transaction.status == TransactionStatus.CONFIRMADO,
+            )
             .all()
         )
         meses_labels.append("%s %s" % (calendar.month_abbr[m], y))
-        ingresos_serie.append(round(sum((t.amount for t in txs if t.type == TransactionType.INGRESO), CERO), 2))
+        ingresos_serie.append(
+            round(sum((t.amount for t in txs if t.type == TransactionType.INGRESO), CERO), 2)
+        )
         gastos_serie.append(round(sum((t.amount for t in txs if t.type == TransactionType.GASTO), CERO), 2))
 
     presupuestos = []

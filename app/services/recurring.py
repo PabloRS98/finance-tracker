@@ -12,7 +12,7 @@ libro con el tipo de cambio del momento de la generación.
 import calendar
 import logging
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy.orm import Session
 

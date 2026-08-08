@@ -94,7 +94,12 @@ def test_el_siguiente_ciclo_reintenta_lo_que_no_se_envio(db, monkeypatch):
     alertas.comprobar_y_enviar(db)
 
     enviados = []
-    monkeypatch.setattr(telegram, "send_message", lambda texto, *a, **k: enviados.append(texto) or {"ok": True})
+
+    def _enviar(texto, *a, **k):
+        enviados.append(texto)
+        return {"ok": True}
+
+    monkeypatch.setattr(telegram, "send_message", _enviar)
     reintentadas = alertas.comprobar_y_enviar(db)
 
     assert reintentadas == 1

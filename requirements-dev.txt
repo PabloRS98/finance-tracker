@@ -1,0 +1,8 @@
+# Herramientas de desarrollo. No van en la imagen: el Dockerfile instala solo
+# requirements.txt, y meter el linter en producción es peso sin uso.
+#
+# La versión va fijada a propósito. Ruff cambia de reglas entre versiones, y con
+# un rango flotante el CI empezaría a fallar por una actualización del linter en
+# vez de por un cambio del código.
+ruff==0.14.7
+pytest==9.1.1

@@ -9,7 +9,6 @@ import pytest
 from app.models import Benchmark, PriceHistory
 from app.services.history import benchmark_series, clave_de_simbolo
 
-
 # ---------- Clave a partir del símbolo ----------
 
 @pytest.mark.parametrize("symbol,esperado", [

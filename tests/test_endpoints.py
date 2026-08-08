@@ -11,8 +11,18 @@ import pytest
 
 from app.config import settings
 from app.models import (
-    Account, AccountKind, Asset, AssetType, Category, Currency, Operation, OperationType,
-    RecurringTransaction, Transaction, TransactionStatus, TransactionType,
+    Account,
+    AccountKind,
+    Asset,
+    AssetType,
+    Category,
+    Currency,
+    Operation,
+    OperationType,
+    RecurringTransaction,
+    Transaction,
+    TransactionStatus,
+    TransactionType,
 )
 
 # Todas las páginas HTML de la app. /cuentas no está: es POST-only a propósito

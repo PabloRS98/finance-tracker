@@ -10,9 +10,9 @@ cambio del día de cada compra: comparando el rendimiento en base (coste
 histórico, valor al FX actual) con el rendimiento local sale el efecto divisa,
 siempre como porcentaje aparte del P&L de precio."""
 from bisect import bisect_right
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from typing import Callable
 
 from sqlalchemy.orm import Session, selectinload
 
@@ -170,7 +170,9 @@ def asset_summary(asset: Asset, fx_on: FxLookup | None = None, exposure_fx: FxLo
     # avg_cost y cost_open: se toman del avg_cost_override si está definido (criptos
     # sin operaciones, activos con coste manual), si no del Position calculado
     avg_cost = asset.avg_cost_override if asset.avg_cost_override is not None else pos.avg_cost
-    cost_open = (avg_cost * quantity) if (avg_cost is not None and quantity is not None and quantity > 0) else pos.cost_open
+    cost_open = (avg_cost * quantity) if (
+        avg_cost is not None and quantity is not None and quantity > 0
+    ) else pos.cost_open
 
     unrealized = pnl_pct = None
     if price is not None and value is not None and cost_open > 0:
@@ -271,7 +273,10 @@ def portfolio_totals(db: Session) -> dict:
                 total_cost += s["cost_open"] * rate
                 total_unrealized += s["unrealized"] * rate
                 pnl_value += s["value"] * rate
-                cost_hist += s["position"].cost_open_base if s["position"].cost_open_base > 0 else (s["cost_open"] * rate)
+                cost_hist += (
+                    s["position"].cost_open_base if s["position"].cost_open_base > 0
+                    else (s["cost_open"] * rate)
+                )
                 if fx_on is not None:
                     any_fx = True
         if s["day_change"] is not None:

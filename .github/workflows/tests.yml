@@ -6,6 +6,26 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    # Job propio y no un paso dentro de pytest: un fallo de estilo y un test
+    # roto son cosas distintas, y verlos separados dice de un vistazo cuál de
+    # las dos ha pasado. Mismo criterio que el job de auditoría.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar ruff
+        # Solo el linter: no hace falta la app entera para leer el código.
+        run: pip install -r requirements-dev.txt
+
+      - name: Estilo
+        run: ruff check .
+
   pytest:
     runs-on: ubuntu-latest
     steps:

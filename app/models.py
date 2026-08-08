@@ -1,12 +1,22 @@
 """Modelos de datos: activos, transacciones, categorías, snapshots y recurrentes."""
 import enum
-from datetime import datetime, date, timezone
-
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    String, Float, Integer, Boolean, DateTime, Date, ForeignKey, Enum as SAEnum, Numeric, Text,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -26,7 +36,7 @@ Money = Numeric(12, 2)
 
 def utcnow() -> datetime:
     """UTC naive (compatible con las filas ya guardadas); evita datetime.utcnow(), deprecado en 3.12."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _by_value(enum_cls):
@@ -163,7 +173,9 @@ class Asset(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120))
     asset_type: Mapped[AssetType] = mapped_column(SAEnum(AssetType, values_callable=_by_value))
-    currency: Mapped[Currency] = mapped_column(SAEnum(Currency, values_callable=_by_value), default=Currency.EUR)
+    currency: Mapped[Currency] = mapped_column(
+        SAEnum(Currency, values_callable=_by_value), default=Currency.EUR
+    )
 
     # Para acciones/ETFs/cripto: símbolo (Yahoo Finance) o id (CoinGecko) + cantidad
     ticker: Mapped[str | None] = mapped_column(String(40), nullable=True)

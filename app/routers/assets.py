@@ -1,5 +1,5 @@
 """CRUD de activos (cuentas, inversiones, cripto, inmuebles), con edición y precios."""
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session, selectinload
@@ -10,12 +10,23 @@ from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptFloat
 from ..models import (
-    Alerta, Asset, AssetType, CURRENCY_CODES, Currency, TipoAlerta, Watchlist, currency_from_code,
+    CURRENCY_CODES,
+    Alerta,
+    Asset,
+    AssetType,
+    Currency,
+    TipoAlerta,
+    Watchlist,
+    currency_from_code,
 )
 from ..services import classify, fusion, market_data, telegram
 from ..services.history import _symbol_series
 from ..services.portfolio import (
-    FxLookup, asset_summary, exposure_fx_lookup, fx_lookup, posicion_cerrada,
+    FxLookup,
+    asset_summary,
+    exposure_fx_lookup,
+    fx_lookup,
+    posicion_cerrada,
 )
 from ..templating import templates
 
@@ -33,7 +44,7 @@ TYPE_SECTIONS = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _fetch_price(asset: Asset) -> bool:
@@ -196,7 +207,9 @@ def asset_detail(asset_id: int, request: Request, db: Session = Depends(get_db))
     secondary = None
     if asset.current_price is not None and asset.asset_type in INVERTIBLE:
         sec_cur = settings.base_currency if asset.currency.value != settings.base_currency else "USD"
-        sec_rate = rate if sec_cur == settings.base_currency else market_data.get_exchange_rate(asset.currency.value, sec_cur)
+        sec_rate = rate if sec_cur == settings.base_currency else market_data.get_exchange_rate(
+            asset.currency.value, sec_cur,
+        )
         if sec_rate is not None:
             secondary = {"currency": sec_cur, "price": asset.current_price * sec_rate}
 

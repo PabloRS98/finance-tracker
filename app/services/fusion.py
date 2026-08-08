@@ -102,7 +102,9 @@ def puede_fusionar(destino: Asset, origenes: list[Asset]) -> str | None:
         # Las operaciones no guardan divisa: heredan la del activo. Juntar dos
         # escalas de precio bajo una sola divisa falsearía el coste medio sin
         # dejar rastro, igual que pasaba al importar.
-        return "Están en divisas distintas (%s): fusionarlos falsearía el coste medio" % ", ".join(sorted(divisas))
+        return "Están en divisas distintas (%s): fusionarlos falsearía el coste medio" % (
+            ", ".join(sorted(divisas))
+        )
 
     tipos = {a.asset_type for a in todos}
     if len(tipos) > 1:

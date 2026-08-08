@@ -50,7 +50,8 @@ def parse(text: str) -> ParseResult:
                                 "fecha", "hora", "created time", "trade time"))
         qty = to_float(pick(raw, "amount", "filled amount", "size", "quantity", "cantidad",
                              "filled qty", "exec qty", "volume"))
-        row.quantity = abs(qty) if qty is not None else None  # el signo lo da el lado (buy/sell), no la cantidad
+        # El signo lo da el lado (buy/sell), no la cantidad
+        row.quantity = abs(qty) if qty is not None else None
         row.unit_price = to_float(pick(raw, "avg price", "filled price", "price", "precio",
                                        "avg fill price", "exec price"))
         fee = to_float(pick(raw, "fee", "fees", "comision", "trading fee"))

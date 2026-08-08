@@ -6,7 +6,9 @@ from urllib.parse import quote
 from fastapi.responses import RedirectResponse
 
 
-def redirect_flash(url: str, message: str, category: str = "success", status_code: int = 303) -> RedirectResponse:
+def redirect_flash(
+    url: str, message: str, category: str = "success", status_code: int = 303,
+) -> RedirectResponse:
     """RedirectResponse (patrón PRG) + cookie 'flash' con el mensaje para el toast."""
     response = RedirectResponse(url, status_code=status_code)
     response.set_cookie(

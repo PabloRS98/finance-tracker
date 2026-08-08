@@ -199,7 +199,9 @@ def test_exposicion_todo_el_rendimiento_es_divisa():
               exposure_currency="USD")
     a.operations = [op(OperationType.COMPRA, 10, 90)]
     a.current_price = 99.0
-    fx = lambda d: 0.90 if d == date(2026, 1, 10) else 0.99
+    def fx(d):
+        return 0.90 if d == date(2026, 1, 10) else 0.99
+
     s = asset_summary(a, fx_on=None, exposure_fx=fx)
     assert s["pnl_pct"] == pytest.approx(10.0)             # total en EUR
     assert s["exposure_local_pct"] == pytest.approx(0.0)   # precio plano en USD
@@ -213,7 +215,9 @@ def test_exposicion_descomposicion_multiplicativa():
               exposure_currency="USD")
     a.operations = [op(OperationType.COMPRA, 10, 100)]  # 100 EUR al FX 1,0 = 100 USD
     a.current_price = 104.5
-    fx = lambda d: 1.0 if d == date(2026, 1, 10) else 0.95
+    def fx(d):
+        return 1.0 if d == date(2026, 1, 10) else 0.95
+
     s = asset_summary(a, exposure_fx=fx)
     assert s["pnl_pct"] == pytest.approx(4.5)
     assert s["exposure_local_pct"] == pytest.approx(10.0)

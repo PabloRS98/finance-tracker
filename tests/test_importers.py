@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from app.services.importers import generic, okx, revolut, trade_republic, to_float, to_date, looks_like_isin
+from app.services.importers import generic, looks_like_isin, okx, revolut, to_date, to_float, trade_republic
 
 TR_CSV = """Fecha;Tipo;Valor;Nota;ISIN;Cantidad;Comisión
 2025-11-03;Compra;-500,00;Fondo Mundial Ejemplo;IE00EJEMPLO1;4,2;1,00

@@ -5,10 +5,17 @@ from datetime import date, timedelta
 import pytest
 
 from app.models import (
-    Asset, AssetType, Benchmark, Currency, Operation, OperationType, PriceHistory, TransactionStatus,
+    Asset,
+    AssetType,
+    Benchmark,
+    Currency,
+    Operation,
+    OperationType,
+    PriceHistory,
+    TransactionStatus,
 )
-from app.services import market_data
 from app.services import history as history_svc
+from app.services import market_data
 from app.services.history import cagr_from_evolution, eur_usd_snapshot, portfolio_evolution
 
 

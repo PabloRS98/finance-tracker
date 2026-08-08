@@ -63,7 +63,7 @@ TABLE_COLS = len(HEADER_COLS)
 
 def parse(text: str) -> ParseResult:
     result = ParseResult()
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    lines = [linea.strip() for linea in text.split("\n") if linea.strip()]
 
     current_currency = "USD"
     in_table = False
@@ -142,14 +142,18 @@ def parse(text: str) -> ParseResult:
         if idx + TABLE_COLS > len(lines):
             break
 
+        # Se nombran las nueve columnas aunque tres no se usen: el parseo es
+        # posicional y con los nombres delante se comprueba de un vistazo que
+        # los desplazamientos cuadran con el extracto. Sustituirlos por índices
+        # sueltos haría el error de columna imposible de ver.
         symbol = second
-        type_raw = lines[idx + 2]
+        type_raw = lines[idx + 2]        # noqa: F841
         qty_str = lines[idx + 3]
         price_str = lines[idx + 4]
         side = lines[idx + 5]
-        value_str = lines[idx + 6]
+        value_str = lines[idx + 6]       # noqa: F841
         fee_str = lines[idx + 7]
-        comm_str = lines[idx + 8]
+        comm_str = lines[idx + 8]        # noqa: F841
 
         idx += TABLE_COLS
 

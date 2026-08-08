@@ -16,8 +16,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.database import Base, get_db
 from app import models  # noqa: F401  registra los modelos en Base
+from app.database import Base, get_db
 
 
 @pytest.fixture

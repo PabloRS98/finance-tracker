@@ -136,7 +136,7 @@ def dinero(value) -> str:
     """Formato monetario español: 1234567.5 -> '1.234.567,50'."""
     if value is None:
         return "-"
-    formatted = "{:,.2f}".format(float(value))
+    formatted = f"{float(value):,.2f}"
     return formatted.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
