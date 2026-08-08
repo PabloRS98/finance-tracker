@@ -17,6 +17,18 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A7] La descarga de backup usa un temporal único y lo borra
+
+Escribía siempre en `/tmp/finance-backup.db`. Tres problemas: `/tmp` no existe
+fuera de Linux; dos descargas a la vez se pisaban el fichero, y
+`sqlite3.backup()` sobre uno que se está leyendo produce una copia corrupta sin
+ningún error —el peor fallo posible en un backup—; y la copia, que lleva el
+patrimonio, las operaciones y los gastos, se quedaba en disco indefinidamente.
+
+El `ROADMAP` asumía esto como deuda, pero solo había pesado la colisión, que en
+una app mono-usuario efectivamente no ocurre. La copia olvidada no estaba en esa
+cuenta. Deuda retirada.
+
 ### [FT-A6] `BACKUP_KEEP=0` ya no conserva los backups para siempre
 
 `existing[:-0]` es `existing[:0]`, o sea la lista vacía. Con `BACKUP_KEEP=0` no

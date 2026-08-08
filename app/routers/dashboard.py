@@ -1,12 +1,15 @@
 """Vista principal: evolución de patrimonio, desglose por tipo de activo,
 ingresos/gastos, presupuestos y pendientes de aprobar."""
 import calendar
+import os
+import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 
 from ..auth import verify_auth
 from ..config import settings
@@ -193,11 +196,29 @@ def fx_rate():
 
 @router.get("/patrimonio/backup")
 def download_backup():
-    """Descarga un backup fresco de la BD (copia consistente vía API de SQLite)."""
-    path = backup_database("/tmp/finance-backup.db")
+    """Descarga un backup fresco de la BD (copia consistente vía API de SQLite).
+
+    El destino es un temporal único y se borra en cuanto la respuesta se ha
+    enviado entera. Antes era la ruta fija `/tmp/finance-backup.db`, con tres
+    problemas: `/tmp` no existe fuera de Linux; dos descargas a la vez se
+    pisaban el fichero y `sqlite3.backup()` sobre uno que se está leyendo da una
+    copia corrupta sin ningún error —el peor fallo posible en un backup—; y la
+    copia, que lleva el patrimonio entero, se quedaba ahí para siempre.
+
+    `BackgroundTask` corre DESPUÉS de mandar la respuesta completa, que es justo
+    lo que hace falta: borrarlo antes cortaría la descarga.
+
+    La rotación sigue sin aplicarse aquí, y es lo correcto: `backup_database`
+    solo rota dentro de un directorio llamado `backups`, y este es el temporal
+    del sistema. Descargar una copia no puede llevarse por delante las diarias.
+    """
+    fd, path = tempfile.mkstemp(prefix="finance-backup-", suffix=".db")
+    os.close(fd)
+    backup_database(path)
     return FileResponse(
         path, media_type="application/octet-stream",
         filename="finance-backup-%s.db" % date.today().isoformat(),
+        background=BackgroundTask(os.unlink, path),
     )
 
 

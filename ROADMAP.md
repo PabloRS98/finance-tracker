@@ -72,9 +72,12 @@ migración— para ahorrar una petición por activo y día. No compensa. Y ojo: 
 misma condición es la que da el tramo antiguo a los activos registrados antes de
 que existiera el rango de 5 años, y `tests/test_history.py` lo exige.
 
-**Backup a ruta fija** (`routers/dashboard.py`). La descarga escribe siempre en
-`/tmp/finance-backup.db`: dos descargas simultáneas se pisan. Es una app
-mono-usuario, así que en la práctica no ocurre.
+~~**Backup a ruta fija**~~ — deuda retirada en la auditoría ([FT-A7]). Se asumió
+mirando solo la colisión entre descargas simultáneas, que en una app
+mono-usuario efectivamente no pasa. Lo que no se pesó entonces: `/tmp` no existe
+fuera de Linux, y sobre todo que la copia —el patrimonio entero— se quedaba en
+disco para siempre. Ahora va a un temporal único que se borra al terminar la
+descarga.
 
 **`asset_summary` sin FX al filtrar operaciones** (`routers/operations.py`). Al
 filtrar por un activo extranjero, el resumen no trae la descomposición de divisa
