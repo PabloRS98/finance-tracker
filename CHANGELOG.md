@@ -17,6 +17,21 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-C3] La app arranca desde cualquier directorio
+
+Las plantillas, los estáticos y el `.env` se resolvían con rutas relativas al
+directorio de trabajo del proceso. Funcionaba de casualidad: el `WORKDIR /app`
+del Dockerfile lo salvaba. Cualquier otra forma de arrancar —uvicorn desde otra
+carpeta, un systemd unit sin `WorkingDirectory`, un `docker run -w /`— fallaba
+al montar los estáticos o al primer render.
+
+El del `.env` era el peor de los tres precisamente porque **no fallaba**: si no
+se leía, la app se levantaba con todos los valores por defecto, es decir sin
+autenticación y sin Telegram, sin ningún error visible. Un cambio de directorio
+bastaba para degradar la seguridad en silencio.
+
+Las tres rutas se derivan ahora del propio módulo.
+
 ### [FT-C1] Exponer la app pasa a ser una decisión, no el valor por defecto
 
 Tres cosas defendibles por separado se sumaban en algo que no lo era: el puerto

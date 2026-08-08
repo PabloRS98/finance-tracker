@@ -2,6 +2,7 @@
 import logging
 from contextlib import asynccontextmanager
 from html import escape
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import HTMLResponse
@@ -142,7 +143,12 @@ app.include_router(transactions.router)
 app.include_router(recurring.router)
 app.include_router(categories.router)
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Absoluta, por el mismo motivo que las plantillas: con la ruta relativa,
+# StaticFiles comprueba que el directorio existe y lanza RuntimeError al montar
+# si el proceso no arrancó desde la raíz del repo. La app no llegaba a levantar.
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 def _pagina_error(request: Request, codigo: int, titulo: str, detalle: str) -> HTMLResponse:
