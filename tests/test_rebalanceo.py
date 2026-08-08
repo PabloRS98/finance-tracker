@@ -120,7 +120,7 @@ def test_la_aportacion_va_solo_a_los_que_van_cortos(cartera):
     _objetivo(db, mundo, 60)
     _objetivo(db, emergentes, 40)
 
-    reparto = reparto_de_aportacion(db, 1000)
+    reparto = reparto_de_aportacion(plan(db, 1000), 1000)
 
     assert [r["asset"].name for r in reparto] == ["Emergentes"]
     assert reparto[0]["importe"] == pytest.approx(1000.0)
@@ -142,7 +142,7 @@ def test_se_reparte_en_proporcion_a_lo_que_falta(db, monkeypatch):
     db.add(PesoObjetivo(asset_id=b.id, porcentaje=75))
     db.commit()
 
-    reparto = {r["asset"].name: r["importe"] for r in reparto_de_aportacion(db, 1000)}
+    reparto = {r["asset"].name: r["importe"] for r in reparto_de_aportacion(plan(db, 1000), 1000)}
 
     assert reparto["A"] == pytest.approx(250.0)
     assert reparto["B"] == pytest.approx(750.0)
@@ -152,8 +152,8 @@ def test_sin_aportacion_no_hay_reparto(cartera):
     db, mundo, emergentes = cartera
     _objetivo(db, mundo, 60)
 
-    assert reparto_de_aportacion(db, 0) == []
-    assert reparto_de_aportacion(db, -100) == []
+    assert reparto_de_aportacion(plan(db, 0), 0) == []
+    assert reparto_de_aportacion(plan(db, -100), -100) == []
 
 
 def test_si_todo_esta_en_objetivo_no_hay_nada_que_repartir(cartera):
@@ -162,7 +162,7 @@ def test_si_todo_esta_en_objetivo_no_hay_nada_que_repartir(cartera):
     _objetivo(db, emergentes, 25)
 
     # Con la cartera ya en su objetivo y sin aportación, nadie va corto
-    assert reparto_de_aportacion(db, 0) == []
+    assert reparto_de_aportacion(plan(db, 0), 0) == []
 
 
 # ---------- Página ----------

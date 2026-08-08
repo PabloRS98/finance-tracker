@@ -130,9 +130,12 @@ def delete_benchmark(benchmark_id: int, db: Session = Depends(get_db)):
 @router.get("/rebalanceo")
 def rebalance(request: Request, aportacion: float = 0.0, db: Session = Depends(get_db)):
     """Desviación frente a los pesos objetivo y qué comprar para corregirla."""
+    # El plan se calcula UNA vez y se pasa al reparto: antes cada uno recorría
+    # la cartera entera por su cuenta, calculando lo mismo dos veces.
+    detalle = rebalanceo.plan(db, aportacion)
     return templates.TemplateResponse(request, "rebalanceo.html", {
-        "detalle": rebalanceo.plan(db, aportacion),
-        "reparto": rebalanceo.reparto_de_aportacion(db, aportacion),
+        "detalle": detalle,
+        "reparto": rebalanceo.reparto_de_aportacion(detalle, aportacion),
         "aportacion": aportacion,
         "invertibles": (
             db.query(Asset)
