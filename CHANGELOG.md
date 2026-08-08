@@ -17,6 +17,19 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A4] Límite de tamaño en las subidas de ficheros
+
+Ni la importación de operaciones ni la de movimientos del banco acotaban el
+tamaño. `archivo.read()` sin argumento carga el fichero entero en memoria y el
+`.decode()` posterior hace una segunda copia: arrastrar por error un fichero de
+1 GB consume 2-3 GB y el kernel mata el proceso. En un NAS con 4 GB eso tumba
+también lo que haya al lado, sin ningún mensaje útil.
+
+Ahora se lee por trozos con tope: 20 MB para CSV y 10 MB para PDF. Son dos
+números distintos a propósito — los bytes del PDF van a `fitz.open()`, que con
+un fichero malformado o con bombas de descompresión consume mucha más memoria
+que el original.
+
 ### [FT-A7] La descarga de backup usa un temporal único y lo borra
 
 Escribía siempre en `/tmp/finance-backup.db`. Tres problemas: `/tmp` no existe
