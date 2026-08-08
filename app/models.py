@@ -128,13 +128,49 @@ class OperationType(enum.Enum):
     VENTA = "venta"
 
 
+class Usuario(Base):
+    """Una persona de la casa, con su patrimonio y sus gastos aparte.
+
+    La app nació mono-usuario. Al abrirla a varias personas la decisión de fondo
+    fue que los datos son de cada una y no compartidos: un tracker de patrimonio
+    responde "cuánto tengo", y esa pregunta no tiene sentido sumada entre dos.
+
+    La contraseña es **opcional** a propósito. En casa, obligar a teclearla
+    varias veces al día desde el móvil acaba en una contraseña de cuatro letras
+    o en la app abierta permanentemente, que es peor que no tenerla. Quien la
+    quiera la pone; el aislamiento entre usuarios funciona igual, porque no
+    depende de ella.
+
+    Lo que sí protege de fuera es el binding a loopback y `ENABLE_AUTH`: elegir
+    usuario NO es un control de acceso contra terceros, es separar los datos de
+    quienes ya están dentro de casa.
+    """
+
+    __tablename__ = "usuarios"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nombre: Mapped[str] = mapped_column(String(40), unique=True)
+    # None = entra sin contraseña. No se guarda en claro ni cifrada: hash con
+    # sal, que es lo único que no permite recuperar la original.
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    @property
+    def pide_password(self) -> bool:
+        return bool(self.password_hash)
+
+
 class Account(Base):
     """Cuenta/plataforma donde viven activos u operaciones (Trade Republic, OKX, banco...)."""
 
     __tablename__ = "accounts"
 
+    __table_args__ = (UniqueConstraint("usuario_id", "name", name="uq_accounts_usuario_name"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(80), unique=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(80))
     kind: Mapped[AccountKind] = mapped_column(
         SAEnum(AccountKind, values_callable=_by_value), default=AccountKind.BROKER
     )
@@ -171,6 +207,9 @@ class Asset(Base):
     __tablename__ = "assets"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(120))
     asset_type: Mapped[AssetType] = mapped_column(SAEnum(AssetType, values_callable=_by_value))
     currency: Mapped[Currency] = mapped_column(
@@ -265,8 +304,12 @@ class Asset(Base):
 class Category(Base):
     __tablename__ = "categories"
 
+    __table_args__ = (UniqueConstraint("usuario_id", "name", name="uq_categories_usuario_name"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(60), unique=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(60))
     # Palabras clave separadas por coma, usadas para auto-categorizar CSV/voz
     keywords: Mapped[str] = mapped_column(Text, default="")
     budget_limit: Mapped[Decimal | None] = mapped_column(Money, nullable=True)  # None = sin límite
@@ -276,6 +319,9 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
     date: Mapped[date] = mapped_column(Date, default=date.today, index=True)  # se filtra/ordena por fecha
     type: Mapped[TransactionType] = mapped_column(SAEnum(TransactionType, values_callable=_by_value))
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"), nullable=True)
@@ -298,6 +344,9 @@ class RecurringTransaction(Base):
     __tablename__ = "recurring_transactions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
     name: Mapped[str] = mapped_column(String(120))
     type: Mapped[TransactionType] = mapped_column(
         SAEnum(TransactionType, values_callable=_by_value), default=TransactionType.GASTO
@@ -324,8 +373,12 @@ class RecurringTransaction(Base):
 class NetWorthSnapshot(Base):
     __tablename__ = "net_worth_snapshots"
 
+    __table_args__ = (UniqueConstraint("usuario_id", "date", name="uq_snapshots_usuario_date"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    date: Mapped[date] = mapped_column(Date, unique=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
+    date: Mapped[date] = mapped_column(Date)
     total_value: Mapped[float] = mapped_column(Float)  # en base_currency (EUR)
     # Parte manual (cuentas/inmuebles) del total; la invertida se reconstruye
     # desde operaciones + histórico de precios. Nullable: snapshots antiguos no la traen.
@@ -341,6 +394,9 @@ class NetWorthIntraday(Base):
     __tablename__ = "net_worth_intraday"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
     ts: Mapped[datetime] = mapped_column(DateTime, index=True)  # naive UTC
     total_value: Mapped[float] = mapped_column(Float)      # en base_currency
     invested_value: Mapped[float] = mapped_column(Float)   # parte invertida (acciones/cripto)
@@ -369,10 +425,15 @@ class Benchmark(Base):
 
     __tablename__ = "benchmarks"
 
+    __table_args__ = (UniqueConstraint("usuario_id", "clave", name="uq_benchmarks_usuario_clave"), UniqueConstraint("usuario_id", "symbol", name="uq_benchmarks_usuario_symbol"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    clave: Mapped[str] = mapped_column(String(40), unique=True)
+    # Los índices de comparación son una preferencia, no un dato de mercado.
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
+    clave: Mapped[str] = mapped_column(String(40))
     label: Mapped[str] = mapped_column(String(60))
-    symbol: Mapped[str] = mapped_column(String(40), unique=True)
+    symbol: Mapped[str] = mapped_column(String(40))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -386,8 +447,12 @@ class Watchlist(Base):
 
     __tablename__ = "watchlist"
 
+    __table_args__ = (UniqueConstraint("usuario_id", "ticker", name="uq_watchlist_usuario_ticker"),)
     id: Mapped[int] = mapped_column(primary_key=True)
-    ticker: Mapped[str] = mapped_column(String(40), unique=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
+    ticker: Mapped[str] = mapped_column(String(40))
     name: Mapped[str] = mapped_column(String(120))
     asset_type: Mapped[AssetType] = mapped_column(SAEnum(AssetType, values_callable=_by_value))
     currency: Mapped[Currency] = mapped_column(
@@ -423,6 +488,9 @@ class Alerta(Base):
     __tablename__ = "alertas"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
     asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True)
     asset: Mapped["Asset"] = relationship(overlaps="alertas")
     tipo: Mapped[TipoAlerta] = mapped_column(SAEnum(TipoAlerta, values_callable=_by_value))
@@ -447,6 +515,9 @@ class PesoObjetivo(Base):
     __tablename__ = "pesos_objetivo"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuarios.id", ondelete="CASCADE"), index=True
+    )
     asset_id: Mapped[int] = mapped_column(
         ForeignKey("assets.id", ondelete="CASCADE"), unique=True, index=True
     )
