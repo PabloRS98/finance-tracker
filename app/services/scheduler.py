@@ -3,6 +3,7 @@ de patrimonio, backups de la BD y generación de transacciones recurrentes."""
 import logging
 import os
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -33,15 +34,62 @@ def _currency_str(value) -> str:
     return value.value if hasattr(value, "value") else str(value)
 
 
+# Peticiones simultáneas por proveedor. Bajos a propósito: el cuello de botella
+# no es la CPU sino el proveedor, y los dos aguantan cosas distintas. Yahoo es
+# tolerante; CoinGecko, en su plan gratuito, limita a ~10-30 peticiones por
+# minuto y responde 429 en cuanto te pasas — y un 429 no es "más lento", es una
+# cotización que no se actualiza.
+HILOS_ACCIONES = 4
+HILOS_CRIPTO = 2
+
+
+def _descargar_precios(assets: list[Asset]) -> dict[int, object]:
+    """Cotizaciones de todos los activos, pedidas en paralelo. {asset_id: resultado}.
+
+    Los hilos **solo hacen HTTP**: no tocan la base. Es una desviación
+    consciente respecto a `projects-dashboard`, que abre una sesión por hilo;
+    aquí no hace falta ninguna, y una sesión que no existe no se puede compartir
+    entre hilos por descuido. Lo que se paraleliza es lo que tarda: cada
+    petición lleva 10-15 s de timeout, y en serie eso son minutos con 25
+    activos.
+    """
+    acciones = [a for a in assets if a.asset_type == AssetType.ACCION and a.ticker]
+    criptos = [a for a in assets if a.asset_type == AssetType.CRIPTO and a.ticker]
+    resultados: dict[int, object] = {}
+
+    def _accion(asset: Asset):
+        return asset.id, market_data.get_stock_price(asset.ticker)
+
+    def _cripto(asset: Asset):
+        return asset.id, market_data.get_crypto_price(
+            asset.ticker, _currency_str(asset.currency).lower()
+        )
+
+    for objetivos, funcion, hilos in (
+        (acciones, _accion, HILOS_ACCIONES),
+        (criptos, _cripto, HILOS_CRIPTO),
+    ):
+        if not objetivos:
+            continue
+        with ThreadPoolExecutor(max_workers=min(hilos, len(objetivos))) as pool:
+            for asset_id, resultado in pool.map(funcion, objetivos):
+                resultados[asset_id] = resultado
+
+    return resultados
+
+
 def update_all_prices() -> None:
     db: Session = SessionLocal()
     try:
         assets = db.query(Asset).filter(Asset.asset_type.in_([AssetType.ACCION, AssetType.CRIPTO])).all()
+        # Primero se descarga todo en paralelo y después se aplica en la sesión,
+        # en un solo hilo: así el ORM nunca se toca desde varios a la vez.
+        descargados = _descargar_precios(assets)
         for asset in assets:
             if not asset.ticker:
                 continue
             if asset.asset_type == AssetType.ACCION:
-                result = market_data.get_stock_price(asset.ticker)
+                result = descargados.get(asset.id)
                 if result:
                     asset.current_price = result["price"]
                     asset.previous_close = result["previous_close"]
@@ -54,7 +102,7 @@ def update_all_prices() -> None:
                         asset.name = result["name"]
                     asset.last_price_update = utcnow().replace(microsecond=0)
             elif asset.asset_type == AssetType.CRIPTO:
-                result = market_data.get_crypto_price(asset.ticker, _currency_str(asset.currency).lower())
+                result = descargados.get(asset.id)
                 if result is not None:
                     asset.current_price, asset.previous_close = result
                     classify.autofill(asset)
@@ -305,12 +353,17 @@ def start_scheduler() -> BackgroundScheduler:
         update_all_prices, "interval",
         minutes=settings.price_refresh_minutes,
         next_run_time=datetime.now(scheduler.timezone),
+        # Una ejecución larga -Yahoo lento, muchos activos- no puede solaparse
+        # con la siguiente: serían dos tandas de peticiones a la vez pisándose
+        # los mismos activos, y el doble de posibilidades de comerse un 429.
+        max_instances=1,
         id="update_prices",
     )
     scheduler.add_job(
         sample_intraday_job, "interval",
         minutes=settings.intraday_sample_minutes,
         next_run_time=datetime.now(scheduler.timezone) + timedelta(seconds=40),
+        max_instances=1,  # ídem: dos muestreos a la vez escribirían el mismo punto
         id="intraday_sample",
     )
     scheduler.add_job(snapshot_net_worth, "cron", hour=23, minute=55, id="daily_snapshot")
