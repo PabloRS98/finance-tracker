@@ -28,6 +28,7 @@ from ..services.portfolio import (
     exposure_fx_lookup,
     fx_lookup,
     posicion_cerrada,
+    resumen_completo,
 )
 from ..templating import templates
 
@@ -230,7 +231,7 @@ def asset_detail(asset_id: int, request: Request, db: Session = Depends(get_db))
 
     rate = market_data.get_exchange_rate(asset.currency.value, settings.base_currency)
     summary = (
-        asset_summary(asset, fx_lookup(db, asset.currency.value), exposure_fx_lookup(db, asset, {}))
+        resumen_completo(db, asset)
         if asset.asset_type in INVERTIBLE else None
     )
     operations = sorted(asset.operations, key=lambda o: (o.date, o.id or 0), reverse=True)

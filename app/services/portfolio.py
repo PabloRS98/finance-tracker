@@ -132,6 +132,18 @@ def fx_effect(pnl_pct_local: float, pnl_pct_base: float) -> float | None:
     return 100.0 * ((1 + pnl_pct_base / 100.0) / local_growth - 1)
 
 
+def resumen_completo(db: Session, asset: Asset) -> dict:
+    """`asset_summary` con los dos lookups de divisa puestos.
+
+    Existe para que no haya una tercera forma de montar esta llamada. La ficha
+    del activo los pasaba y la lista de operaciones no, así que al filtrar las
+    operaciones de un activo en dólares el panel de resumen mostraba el efecto
+    divisa vacío mientras la ficha del mismo activo lo enseñaba: dos cifras
+    distintas para lo mismo según por dónde se entrara.
+    """
+    return asset_summary(asset, fx_lookup(db, asset.currency.value), exposure_fx_lookup(db, asset, {}))
+
+
 def exposure_fx_lookup(db: Session, asset: Asset, cache: dict[str, FxLookup | None]) -> FxLookup | None:
     """Lookup FX para la divisa de EXPOSICIÓN del activo (subyacente en otra
     divisa aunque cotice en la base, ej. clase USD de un fondo comprada en EUR).
