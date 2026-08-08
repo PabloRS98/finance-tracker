@@ -54,14 +54,43 @@ def _occurrences(rule: RecurringTransaction):
         k += 1
 
 
-def next_due_date(rule: RecurringTransaction, today: date | None = None) -> date:
-    """Próxima ocurrencia que la regla generará (primera >= start_date aún no generada)."""
+# Tope de ocurrencias a recorrer: 100 años de cargos mensuales. Ninguna regla
+# real llega ahí, y sin tope el recorrido depende de lo que haya en
+# `last_generated`, que no valida nadie.
+MAX_OCURRENCIAS = 1200
+
+
+def next_due_date(rule: RecurringTransaction, today: date | None = None) -> date | None:
+    """Próxima ocurrencia que la regla generará (primera >= start_date aún no generada).
+
+    Con `today`, además se descartan las ocurrencias anteriores a esa fecha: una
+    regla reactivada tras meses parada tiene un `last_generated` viejo, y la
+    siguiente ocurrencia teórica cae en el pasado. Sin `today` no se filtra, que
+    es lo que necesita el catch-up de generación.
+
+    Devuelve None si no encuentra ninguna dentro del tope. Antes el bucle no
+    tenía fin declarado y el retorno decía `date`: con un `last_generated`
+    absurdo —lo escriben la generación y el toggle, y nada valida lo que llegue
+    de una base restaurada a medias— recorría cientos de miles de ocurrencias
+    para acabar proponiendo un cargo en el año 2999, y con `date.max` reventaba
+    con `ValueError: year 10000 is out of range` en mitad de /recurrentes.
+    """
     floor = rule.last_generated
-    for due in _occurrences(rule):
+    for _, due in zip(range(MAX_OCURRENCIAS), _occurrences(rule), strict=False):
         if due < rule.start_date:
             continue
-        if floor is None or due > floor:
-            return due
+        if floor is not None and due <= floor:
+            continue
+        if today is not None and due < today:
+            continue
+        return due
+
+    logger.warning(
+        "La regla recurrente %s no tiene próxima fecha dentro de %d ocurrencias; "
+        "revisa su last_generated (%s)",
+        rule.id, MAX_OCURRENCIAS, rule.last_generated,
+    )
+    return None
 
 
 def generate_due_transactions(db: Session) -> int:
