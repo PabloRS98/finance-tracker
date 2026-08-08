@@ -144,6 +144,17 @@ prefijo del símbolo.
 **Índices de fecha** en transacciones y operaciones, que es por donde se filtra
 siempre.
 
+**Se mide antes de optimizar.** `DEBUG_SQL=1` cuenta las sentencias de cada
+petición y las publica en `X-Consultas-SQL`; los tests usan la misma función
+para fijar un techo por página. La línea base con cinco activos es de 39
+consultas en la portada frente a 4-5 en el resto, así que la portada es la que
+hay que vigilar. Sin ese número, optimizar es una cuestión de opinión.
+
+El contador es **global, no por hilo**: FastAPI ejecuta los endpoints síncronos
+en un hilo del pool, así que un `threading.local` contaba cero. La contrapartida
+es que dos peticiones simultáneas mezclan sus cuentas, y por eso está detrás de
+una variable de entorno y apagado por defecto.
+
 
 ## Cosas pequeñas con motivo
 

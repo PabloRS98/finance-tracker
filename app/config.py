@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # Moneda base para totales consolidados (patrimonio, gastos, ingresos)
     base_currency: str = "EUR"
 
+    # Cuenta las sentencias SQL de cada petición y las publica en la cabecera
+    # X-Consultas-SQL. Solo para diagnosticar: apagado no cuesta nada, porque
+    # ni siquiera se registra el listener de SQLAlchemy.
+    debug_sql: bool = False
+
     # Frecuencia de actualización de precios de mercado (acciones/cripto)
     price_refresh_minutes: int = 60
 
