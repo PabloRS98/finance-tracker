@@ -17,6 +17,25 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-M5] [FT-M8] Los importes se validan y entran como `Decimal`
+
+Cinco endpoints aceptaban el importe sin mirar signo ni magnitud. Un gasto de
+-50 € **suma** al balance del mes, descuadra el presupuesto de su categoría y se
+cuela en el CSV exportado, todo sin un solo error. Chocaba con el rigor del
+resto: las operaciones ya validaban cantidad y precio, las alertas su valor y
+los pesos objetivo su rango.
+
+Y entraban como `float`, justo lo que `models.py` explica que se quería evitar
+al guardarlos en `Numeric`: *"con float, diez gastos de 0,10 € suman
+0.9999999999999999"*. El camino de la voz y de Telegram sí era exacto porque
+pasa por `to_base`; el del formulario web, no. Dos puertas al mismo campo con
+precisión distinta.
+
+Ahora hay un tipo `Importe` que convierte a `Decimal` por su representación
+textual, y de paso **acepta la coma decimal**, que es lo que teclea cualquiera
+aquí y antes daba un 422. El límite superior tampoco es paranoia: `Numeric(12,2)`
+admite hasta 9 999 999 999,99 y por encima SQLite guarda el valor sin quejarse.
+
 ### [FT-M12] Fuera las listas mutables como valor por defecto
 
 Dos endpoints declaraban una lista literal como `default`. Hoy no hay bug —
