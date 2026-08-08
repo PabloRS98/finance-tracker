@@ -73,6 +73,20 @@ como próximo cargo una fecha ya pasada.
 estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
 comentario explicando por qué están donde están—, son descuidos.
 
+### [FT-M7] [FT-M14] Coherencia entre capas y entre pantallas
+
+**FT-M7.** La normalización de nombres para comparación aproximada vivía en el
+router de importación, y el servicio de duplicados la importaba **desde allí**,
+con un import perezoso para no crear un ciclo. Ese import era la señal de que la
+dependencia iba al revés. Pasa a `services/nombres.py`, compartida: si los dos
+sitios normalizaran distinto, un activo casado al importar no saldría después
+como candidato a fusión.
+
+**FT-M14.** Al filtrar las operaciones de un activo en dólares, el panel de
+resumen mostraba el efecto divisa vacío mientras la ficha del mismo activo lo
+enseñaba: dos cifras distintas para lo mismo según por dónde se entrara. Ahora
+hay una sola forma de montar ese resumen, y la usan las dos pantallas.
+
 ### Rendimiento: cinco cambios, todos con su medida
 
 La regla de esta tanda era que sin número no entra nada. Primero se montó el

@@ -79,9 +79,12 @@ fuera de Linux, y sobre todo que la copia —el patrimonio entero— se quedaba 
 disco para siempre. Ahora va a un temporal único que se borra al terminar la
 descarga.
 
-**`asset_summary` sin FX al filtrar operaciones** (`routers/operations.py`). Al
-filtrar por un activo extranjero, el resumen no trae la descomposición de divisa
-que sí sale en la ficha. Inconsistencia menor, no un dato erróneo.
+~~**`asset_summary` sin FX al filtrar operaciones**~~ — deuda retirada en la
+auditoría ([FT-M14]). Se asumió por lo que costaba frente a lo que molestaba, y
+la valoración era correcta: ningún número salía falso, solo faltaba. Lo que
+cambió es el coste: al extraer la construcción de los lookups a
+`portfolio.resumen_completo` —para que no naciera una tercera versión— el
+arreglo pasó a ser una línea.
 
 **Auth desactivada por defecto.** Deliberado: la app se usa desde el móvil en la
 LAN y activar la autenticación de serie dejaría fuera a las instalaciones

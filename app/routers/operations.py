@@ -10,7 +10,7 @@ from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptFloat, OptInt
 from ..models import Account, Asset, AssetType, Operation, OperationType, TransactionStatus
-from ..services.portfolio import asset_summary
+from ..services.portfolio import resumen_completo
 from ..templating import templates
 
 router = APIRouter(prefix="/operaciones", tags=["operaciones"], dependencies=[Depends(verify_auth)])
@@ -68,7 +68,7 @@ def list_operations(
 
     # Resumen de la posición cuando se filtra por un activo concreto
     filtered_asset = db.get(Asset, activo) if activo else None
-    summary = asset_summary(filtered_asset) if filtered_asset else None
+    summary = resumen_completo(db, filtered_asset) if filtered_asset else None
 
     return templates.TemplateResponse(request, "operations.html", {
             "operations": operations,
