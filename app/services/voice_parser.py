@@ -127,10 +127,21 @@ def parse_date(text: str) -> tuple[date, str | None]:
     return today, None
 
 
-def parse_amount(text: str, exclude: str | None = None) -> tuple[float | None, str]:
-    """Extrae el importe y la moneda detectada. Devuelve (None, 'EUR') si no hay
-    ningún número utilizable. `exclude` es el fragmento de fecha ya reconocido,
-    que se elimina antes para no confundir "el 3 de mayo" con 3 euros."""
+def parse_amount(text: str, exclude: str | None = None) -> tuple[float | None, str, str]:
+    """Extrae el importe, la moneda detectada y la confianza.
+
+    Devuelve `(None, "EUR", "baja")` si no hay ningún número utilizable.
+    `exclude` es el fragmento de fecha ya reconocido, que se elimina antes para
+    no confundir "el 3 de mayo" con 3 euros.
+
+    La confianza es "baja" cuando el importe salió del último recurso —el
+    primer entero suelto de la frase, sin moneda ni decimales—. Ese fallback no
+    se quita porque recupera casos legítimos ("3 cafés"), pero acierta por
+    casualidad tanto como falla: «gasté en el súper de la calle 5» da 5 €. El
+    daño está acotado porque todo entra como PENDIENTE, pero el mensaje de
+    confirmación decía "💸 Gasto 5,00 EUR" con toda seguridad, y confirmar es un
+    solo toque.
+    """
     cleaned = text.lower()
     if exclude:
         cleaned = cleaned.replace(exclude.lower(), " ")
@@ -141,21 +152,25 @@ def parse_amount(text: str, exclude: str | None = None) -> tuple[float | None, s
         if m.group(3):  # "20 euros con 50"
             amount = float(int(float(m.group(1)))) + int(m.group(3)) / 100
         currency = "USD" if re.search(r"d[oó]lar|\$|usd", m.group(2), re.IGNORECASE) else "EUR"
-        return amount, currency
+        return amount, currency, "alta"
 
     m = AMOUNT_CON_RE.search(cleaned)
     if m:
-        return int(m.group(1)) + int(m.group(2)) / 100, "EUR"
+        return int(m.group(1)) + int(m.group(2)) / 100, "EUR", "alta"
 
     m = AMOUNT_DECIMAL_RE.search(cleaned)
     if m:
-        return float(m.group(0).replace(",", ".")), "EUR"
+        # Con decimales explícitos ("12,50") nadie está diciendo una fecha ni un
+        # número de portal: es un importe.
+        return float(m.group(0).replace(",", ".")), "EUR", "alta"
 
     m = AMOUNT_INT_RE.search(cleaned)
     if m:
-        return float(m.group(0)), "EUR"
+        # Último recurso: el primer entero suelto. Aquí es donde se cuela
+        # "la calle 5" como 5 euros.
+        return float(m.group(0)), "EUR", "baja"
 
-    return None, "EUR"
+    return None, "EUR", "baja"
 
 
 def parse_type(text: str) -> str:
@@ -263,11 +278,14 @@ def parse_voice_text(text: str, db: Session) -> dict:
     """Devuelve un dict listo para crear una Transaction pendiente a partir de texto libre.
     Si amount es None, el llamador debe avisar al usuario y no crear nada."""
     tx_date, date_fragment = parse_date(text)
-    amount, currency = parse_amount(text, exclude=date_fragment)
+    amount, currency, confianza = parse_amount(text, exclude=date_fragment)
     category = guess_category(text, db)
     return {
         "amount": amount,
         "currency": currency,
+        # "baja" = el importe salió del último patrón, sin moneda ni decimales.
+        # Quien pinte la confirmación tiene que decirlo: confirmar es un toque.
+        "confianza": confianza,
         "type": parse_type(text),
         "date": tx_date,
         "date_detected": date_fragment is not None,

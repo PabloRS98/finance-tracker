@@ -73,6 +73,18 @@ como próximo cargo una fecha ya pasada.
 estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
 comentario explicando por qué están donde están—, son descuidos.
 
+### [FT-M16] La voz avisa cuando no está segura del importe
+
+Agotados los patrones con moneda explícita y con decimales, el parser se
+quedaba con "el primer entero que aparezca". Así, *"gasté en el súper de la
+calle 5"* se apuntaba como 5 €.
+
+El fallback se conserva —quitarlo perdería casos legítimos, como *"3 cafés"*—
+pero deja de presentarse con la misma seguridad que un importe dictado bien: la
+confirmación añade *"¿seguro? no he visto la moneda"*, tanto en la web como en
+Telegram. Todo entraba ya como pendiente, pero confirmar es un solo toque y el
+mensaje no daba ninguna pista de que el número era una suposición.
+
 ### [FT-M9] [FT-M17] La configuración que se documenta ahora existe
 
 **FT-M17.** El bot decía «ponlo en `FINANCE_TELEGRAM_CHAT_ID` del .env», y esa
