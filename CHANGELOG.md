@@ -17,6 +17,23 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A8] Cabeceras de seguridad HTTP
+
+La app no emitía ninguna. Lo que eso permitía, en concreto:
+
+- Sin CSP, cualquier XSS que apareciera en el futuro tendría ejecución total,
+  y ya hay bloques `<script>` en línea en tres plantillas.
+- Sin `frame-ancestors`, la app se puede embeber desde otro origen. Con las
+  credenciales Basic cacheadas por el navegador eso permite clickjacking sobre
+  "Eliminar activo": el token CSRF protege el POST, pero no protege de que el
+  clic lo dé el propio usuario engañado sobre la página real embebida.
+- Sin `Referrer-Policy`, cada enlace externo filtra la URL completa de la app.
+
+`'unsafe-inline'` se mantiene a propósito en esta primera iteración —quitar los
+scripts y estilos en línea es un trabajo aparte—, y aun así la CSP ya impide
+cargar scripts de otro origen y exfiltrar por `img-src` o `connect-src`
+externos.
+
 ### [FT-A1] El token del bot de Telegram deja de escribirse en los logs
 
 `API_URL` lleva el token en la ruta, y el mensaje de `httpx.HTTPStatusError`
