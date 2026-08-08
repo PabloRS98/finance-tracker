@@ -454,7 +454,11 @@ def watchlist_to_portfolio(item_id: int, db: Session = Depends(get_db)):
 @router.post("/duplicados/fusionar")
 def merge_assets(
     destino_id: int = Form(...),
-    origen_ids: list[int] = Form([]),
+    # default_factory, no una lista literal: hoy FastAPI construye una lista
+    # nueva por petición, así que no hay bug, pero es el patrón que se convierte
+    # en uno muy difícil de diagnosticar en cuanto alguien copia la firma a una
+    # función normal —los datos de una petición aparecen en la siguiente—.
+    origen_ids: list[int] = Form(default_factory=list),
     db: Session = Depends(get_db),
 ):
     destino = db.get(Asset, destino_id)
