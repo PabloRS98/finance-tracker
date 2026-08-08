@@ -17,6 +17,26 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-M11] `next_due_date` deja de proponer cargos imposibles
+
+El generador de ocurrencias no tiene fin y el bucle no llevaba tope, así que lo
+que devolvía dependía por completo de `last_generated` — un campo que escriben
+la generación y el interruptor de activar/desactivar, y que nadie valida.
+
+Comprobado ejecutando: con `last_generated` en el año 2999 recorría unas 11.700
+ocurrencias y acababa pintando *"próximo cargo: 10/01/2999"*; con `date.max`
+lanzaba `ValueError: year 10000 is out of range` sin capturar, o sea un 500 en
+`/recurrentes`. (El informe de auditoría decía que colgaba el hilo; no es eso lo
+que pasa.)
+
+Ahora el recorrido se acota en cien años de cargos, el retorno declara que puede
+ser `None` —la plantilla ya lo pintaba como "-"— y queda un aviso en el log
+diciendo qué regla mirar.
+
+De paso, el parámetro `today` deja de ignorarse: el router se lo pasaba y la
+función no lo usaba, así que una regla reactivada tras meses parada anunciaba
+como próximo cargo una fecha ya pasada.
+
 ### [FT-M13] Tres imports sueltos suben a su bloque
 
 `routers/imports.py` tenía un `import re` entre dos funciones, y
