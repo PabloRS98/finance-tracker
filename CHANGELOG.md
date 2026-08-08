@@ -17,6 +17,17 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A6] `BACKUP_KEEP=0` ya no conserva los backups para siempre
+
+`existing[:-0]` es `existing[:0]`, o sea la lista vacía. Con `BACKUP_KEEP=0` no
+se borraba **ninguna** copia: quien lo configuraba esperando "no conservar
+backups" obtenía "conservarlos todos", a razón de una copia completa de la base
+al día. Cuando SQLite se queda sin espacio en un volumen con WAL, las lecturas
+siguen funcionando y las escrituras no, que es la forma más incómoda de
+enterarse.
+
+Con 0 se conserva ahora el que se acaba de crear, y nada más.
+
 ### [FT-A2] Las alertas de precio llegan aunque el activo tenga un `&` en el nombre
 
 Los avisos se envían con `parse_mode: "HTML"` y los nombres de activo se
