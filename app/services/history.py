@@ -11,7 +11,7 @@
 """
 import logging
 import re
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 import httpx
 from sqlalchemy.orm import Session
@@ -57,8 +57,6 @@ def clave_de_simbolo(symbol: str) -> str:
 def fetch_stock_history(ticker: str, start: date) -> dict[date, float]:
     """Cierres diarios desde el endpoint de gráficas de Yahoo (sin yfinance)."""
     try:
-        from datetime import time
-
         period1 = int(datetime.combine(start, time.min, tzinfo=UTC).timestamp())
         period2 = int(datetime.now(UTC).timestamp())
         result = market_data.yahoo_chart(ticker, {"period1": period1, "period2": period2, "interval": "1d"})
@@ -412,7 +410,6 @@ def eur_usd_snapshot(db: Session) -> dict:
     change_pct = 100.0 * (rate - prev) / prev if prev else None
 
     # Variación semanal: comparar con cierre de hace ~7 días naturales
-    from datetime import timedelta
     week_ago = (date.today() - timedelta(days=7)).isoformat()
     week_closes = [p for p in points if p["fecha"] < week_ago]
     prev_week = week_closes[-1]["rate"] if week_closes else None

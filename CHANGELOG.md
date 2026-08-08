@@ -17,6 +17,13 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-M13] Tres imports sueltos suben a su bloque
+
+`routers/imports.py` tenía un `import re` entre dos funciones, y
+`services/history.py` repetía dentro de sendas funciones dos imports que ya
+estaban arriba. No son ciclos ni imports pesados deliberados —esos llevan
+comentario explicando por qué están donde están—, son descuidos.
+
 ### [FT-A10] El `.dockerignore` deja de subir basura al contexto
 
 Tenía cinco líneas y no excluía `.git/`, la base de datos, los backups ni los
