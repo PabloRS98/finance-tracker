@@ -157,6 +157,23 @@ CSP = (
 )
 
 
+if settings.debug_sql:
+    # Se registra solo si está activado: con DEBUG_SQL apagado no hay listener
+    # y el coste es exactamente cero.
+    from .database import engine
+    from .medicion import contar_consultas, instrumentar
+
+    instrumentar(engine)
+
+    @app.middleware("http")
+    async def contar_sql(request: Request, call_next):
+        """Publica cuántas sentencias SQL costó la petición."""
+        with contar_consultas(engine) as consultas:
+            response = await call_next(request)
+        response.headers["X-Consultas-SQL"] = str(consultas.total)
+        return response
+
+
 @app.middleware("http")
 async def cabeceras_de_seguridad(request: Request, call_next):
     """Cabeceras de seguridad en todas las respuestas, estáticos y errores incluidos.
