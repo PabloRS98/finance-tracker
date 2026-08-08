@@ -8,7 +8,7 @@ refresco.
 import pytest
 
 from app.models import Alerta, Asset, AssetType, Currency, TipoAlerta
-from app.services.alertas import comprobar, mensaje
+from app.services.alertas import comprobar, comprobar_y_enviar, mensaje
 
 
 @pytest.fixture
@@ -91,32 +91,46 @@ def test_las_alertas_desactivadas_se_ignoran(db, nvidia):
 
 
 # ---------- Rearme: lo que evita el spam ----------
+#
+# Estos dos pasan por `comprobar_y_enviar` y no por `comprobar`. Antes bastaba
+# con `comprobar`, porque marcaba la alerta como disparada ella misma; eso era
+# el defecto [FT-A2]: un envío fallido daba el aviso por hecho y no se
+# reintentaba. La deduplicación cuelga ahora del envío, que es lo que de verdad
+# significa "ya te he avisado".
 
-def test_no_repite_mientras_la_condicion_siga_cumpliendose(db, nvidia):
+@pytest.fixture
+def telegram_que_funciona(monkeypatch):
+    from app.services import telegram
+
+    monkeypatch.setattr(telegram, "is_configured", lambda: True)
+    monkeypatch.setattr(telegram, "send_message", lambda *a, **k: {"message_id": 1})
+
+
+def test_no_repite_mientras_la_condicion_siga_cumpliendose(db, nvidia, telegram_que_funciona):
     _alerta(db, nvidia, TipoAlerta.POR_ENCIMA, 90.0)
     nvidia.current_price = 120.0
     db.commit()
 
-    assert len(comprobar(db)) == 1, "primera vez sí avisa"
-    assert comprobar(db) == [], "sigue por encima: no repite"
-    assert comprobar(db) == []
+    assert comprobar_y_enviar(db) == 1, "primera vez sí avisa"
+    assert comprobar_y_enviar(db) == 0, "sigue por encima: no repite"
+    assert comprobar_y_enviar(db) == 0
 
 
-def test_se_rearma_al_dejar_de_cumplirse(db, nvidia):
+def test_se_rearma_al_dejar_de_cumplirse(db, nvidia, telegram_que_funciona):
     alerta = _alerta(db, nvidia, TipoAlerta.POR_ENCIMA, 90.0)
     nvidia.current_price = 120.0
     db.commit()
-    comprobar(db)
+    comprobar_y_enviar(db)
     assert alerta.ultimo_disparo is not None
 
     nvidia.current_price = 80.0        # vuelve por debajo
     db.commit()
-    comprobar(db)
+    comprobar_y_enviar(db)
     assert alerta.ultimo_disparo is None, "queda lista para el siguiente cruce"
 
     nvidia.current_price = 130.0       # cruza otra vez
     db.commit()
-    assert len(comprobar(db)) == 1
+    assert comprobar_y_enviar(db) == 1
 
 
 # ---------- Mensaje ----------
