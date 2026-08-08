@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 def _se_cumple(alerta: Alerta) -> bool:
     """True si la condición de la alerta se da con el precio actual."""
     asset = alerta.asset
+    if asset is None:
+        # Fila huérfana: el activo se borró sin llevarse su alerta. Ya no debería
+        # ocurrir (hay cascada en el modelo y ON DELETE en el esquema), pero una
+        # base restaurada a medias o un borrado por SQL puede dejar una, y
+        # entonces reventaba el ciclo entero: el AttributeError subía hasta el
+        # except del scheduler y las alertas dejaban de comprobarse para todos
+        # los activos, sin más rastro que una línea en el log.
+        logger.warning("Alerta %s apunta a un activo inexistente (%s); se ignora",
+                       alerta.id, alerta.asset_id)
+        return False
     precio = asset.current_price
     if precio is None:
         return False

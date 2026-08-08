@@ -200,6 +200,14 @@ class Asset(Base):
     operations: Mapped[list["Operation"]] = relationship(
         back_populates="asset", cascade="all, delete-orphan", order_by="Operation.date, Operation.id"
     )
+    # Con cascade en la relación (y no solo el ON DELETE del esquema): SQLite no
+    # aplica claves foráneas salvo que se active el PRAGMA, así que borrar un
+    # activo dejaba estas filas apuntando a un id inexistente. Y una alerta
+    # huérfana rompía el ciclo de comprobación para TODOS los activos: el
+    # AttributeError quedaba enterrado en el except del scheduler y las alertas
+    # dejaban de funcionar indefinidamente.
+    alertas: Mapped[list["Alerta"]] = relationship(cascade="all, delete-orphan")
+    pesos_objetivo: Mapped[list["PesoObjetivo"]] = relationship(cascade="all, delete-orphan")
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
@@ -403,8 +411,8 @@ class Alerta(Base):
     __tablename__ = "alertas"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), index=True)
-    asset: Mapped["Asset"] = relationship()
+    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id", ondelete="CASCADE"), index=True)
+    asset: Mapped["Asset"] = relationship(overlaps="alertas")
     tipo: Mapped[TipoAlerta] = mapped_column(SAEnum(TipoAlerta, values_callable=_by_value))
     # Precio objetivo (en la divisa del activo) o porcentaje de caída, según el tipo
     valor: Mapped[float] = mapped_column(Float)
@@ -427,8 +435,10 @@ class PesoObjetivo(Base):
     __tablename__ = "pesos_objetivo"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("assets.id"), unique=True, index=True)
-    asset: Mapped["Asset"] = relationship()
+    asset_id: Mapped[int] = mapped_column(
+        ForeignKey("assets.id", ondelete="CASCADE"), unique=True, index=True
+    )
+    asset: Mapped["Asset"] = relationship(overlaps="pesos_objetivo")
     # % objetivo sobre el total invertido
     porcentaje: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

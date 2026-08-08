@@ -17,6 +17,25 @@ Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el 
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.
 
+### [FT-A3] Borrar un activo ya no rompe las alertas de todos los demás
+
+`Asset.operations` tenía cascada; `Alerta` y `PesoObjetivo` no. Y SQLite no
+aplica claves foráneas salvo que se active el PRAGMA, así que borrar un activo
+dejaba esas filas apuntando a un id inexistente.
+
+Lo grave venía después: la comprobación de alertas leía `alerta.asset.current_price`
+sobre un `asset` que ya era `None`, el `AttributeError` quedaba enterrado en el
+`try/except` del scheduler, y **las alertas dejaban de comprobarse para todos
+los activos, indefinidamente**, con una línea de log como único rastro. Bastaba
+borrar una vez un activo que tuviera alerta.
+
+Arreglado en las tres capas, porque cada una tapa un hueco distinto: cascada en
+la relación (lo que usa la app), `ON DELETE CASCADE` en el esquema (lo que
+protege ante un borrado por SQL) y una defensa en la propia comprobación para
+que una fila huérfana llegada por cualquier otra vía no tumbe el ciclo.
+
+La migración limpia además los huérfanos que ya hubiera.
+
 ### [FT-A8] Cabeceras de seguridad HTTP
 
 La app no emitía ninguna. Lo que eso permitía, en concreto:
