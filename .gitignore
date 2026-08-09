@@ -34,6 +34,13 @@
 # Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+# Medición de cobertura: se regenera en cada ejecución
+.coverage
+htmlcov/
 *.egg-info/
 dist/
 build/
