@@ -22,8 +22,20 @@ config = context.config
 if not config.get_main_option("sqlalchemy.url", None):
     config.set_main_option("sqlalchemy.url", "sqlite:///%s" % settings.db_path)
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# El logging de `alembic.ini` es para cuando Alembic manda: la línea de órdenes
+# y el entrypoint del contenedor. Cuando quien migra es la app —`init_db()`, o
+# la suite— el logging ya está configurado y esto lo pisaba entero: `fileConfig`
+# apaga por defecto todos los loggers existentes, y además el `[logger_root]` de
+# ese fichero está en WARN, así que a partir de ahí los `logger.info` de `app.*`
+# desaparecían. El daño no es que algo se rompa: es que deja de avisarse de lo
+# que se rompe.
+#
+# `configure_logger` es el interruptor que Alembic prevé para esto; lo apaga
+# `app/database.py` al construir su Config.
+if config.attributes.get("configure_logger", True) and config.config_file_name is not None:
+    # Ni siquiera desde la línea de órdenes tiene sentido silenciar lo que ya
+    # hubiera: env.py importa `app.config`, que registra sus propios loggers.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
