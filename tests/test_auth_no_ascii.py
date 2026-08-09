@@ -49,19 +49,20 @@ def test_credenciales_no_ascii_devuelven_401(auth_con_tilde):
     Antes reventaba con TypeError dentro de compare_digest, y el manejador
     global lo convertía en la página "Algo ha fallado": un 500."""
     with pytest.raises(HTTPException) as fallo:
-        auth.verify_auth(_peticion(_cabecera_basic("admin", "otra")))
+        auth.acceso_permitido(_peticion(_cabecera_basic("admin", "otra")))
 
     assert fallo.value.status_code == 401
     assert fallo.value.headers["WWW-Authenticate"] == "Basic"
 
 
 def test_credenciales_no_ascii_correctas_autentican(auth_con_tilde):
-    assert auth.verify_auth(_peticion(_cabecera_basic("admin", CLAVE_CON_TILDE))) is True
+    """No lanza: pasar la puerta es no encontrarse un 401."""
+    assert auth.acceso_permitido(_peticion(_cabecera_basic("admin", CLAVE_CON_TILDE))) is None
 
 
 def test_sin_cabecera_pide_credenciales(auth_con_tilde):
     with pytest.raises(HTTPException) as fallo:
-        auth.verify_auth(_peticion(None))
+        auth.acceso_permitido(_peticion(None))
 
     assert fallo.value.status_code == 401
 
@@ -69,7 +70,7 @@ def test_sin_cabecera_pide_credenciales(auth_con_tilde):
 def test_cabecera_corrupta_no_revienta(auth_con_tilde):
     """Un base64 inválido es un 401, no una excepción sin controlar."""
     with pytest.raises(HTTPException) as fallo:
-        auth.verify_auth(_peticion("Basic esto-no-es-base64-valido"))
+        auth.acceso_permitido(_peticion("Basic esto-no-es-base64-valido"))
 
     assert fallo.value.status_code == 401
 

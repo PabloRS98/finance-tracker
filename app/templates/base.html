@@ -52,6 +52,14 @@
     <button id="btn-refresh-prices" type="button" class="ghost icon-btn" title="Refrescar precios ahora">{{ icon("refresh-cw", 17) }}</button>
     <button id="btn-currency" type="button" class="ghost icon-btn" title="Ver importes en la otra divisa (EUR⇄USD)">€$</button>
     <button id="btn-privacy" type="button" class="ghost icon-btn" title="Ocultar/mostrar cifras">{{ icon("eye", 17) }}</button>
+    {# `usuario` lo pone la dependencia usuario_actual en request.state. En las
+       pantallas abiertas (entrar) no hay, y ahí este botón no pinta nada. #}
+    {% set usuario = request.state.usuario | default(none, true) %}
+    {% if usuario %}
+    <button id="btn-cuenta" type="button" class="ghost icon-btn cuenta-btn"
+            data-open-dialog="#dlg-cuenta" title="Cuenta de {{ usuario.nombre }}"
+            aria-label="Cuenta de {{ usuario.nombre }}">{{ usuario.nombre[0] | upper }}</button>
+    {% endif %}
 </header>
 <main class="container">
     {% block content %}{% endblock %}
@@ -84,6 +92,37 @@
     </nav>
     <button type="button" class="ghost" data-close-dialog>Cerrar</button>
 </dialog>
+
+{% if usuario %}
+<dialog id="dlg-cuenta" class="dlg-cuenta">
+    <h3>{{ icon("wallet", 18) }} {{ usuario.nombre }}</h3>
+    <p class="hint">Estás viendo tus datos. Nadie más de casa los ve.</p>
+
+    <form method="post" action="/usuarios/password" class="form-grid">{{ csrf_input(request) }}
+        {% if usuario.pide_password %}
+        <div class="field full">
+            <label for="cuenta-actual">Contraseña actual</label>
+            <input id="cuenta-actual" type="password" name="actual" autocomplete="current-password" required>
+        </div>
+        {% endif %}
+        <div class="field full">
+            <label for="cuenta-nueva">Nueva contraseña</label>
+            {# Vacío es una opción real, no un descuido: quita la contraseña. #}
+            <input id="cuenta-nueva" type="password" name="nueva" autocomplete="new-password"
+                   placeholder="{{ 'Vacío para quitarla' if usuario.pide_password else 'Opcional' }}">
+        </div>
+        <button type="submit" class="ghost">{{ icon("check", 15) }}
+            {{ "Cambiar contraseña" if usuario.pide_password else "Poner contraseña" }}</button>
+    </form>
+
+    <div class="cuenta-pie">
+        <form method="post" action="/salir">{{ csrf_input(request) }}
+            <button type="submit" class="ghost">{{ icon("arrow-left-right", 15) }} Cambiar de cuenta</button>
+        </form>
+        <button type="button" class="ghost" data-close-dialog>Cerrar</button>
+    </div>
+</dialog>
+{% endif %}
 
 <dialog id="dlg-gasto" class="dlg-gasto">
     <h3>{{ icon("piggy-bank", 18) }} Gasto rápido</h3>

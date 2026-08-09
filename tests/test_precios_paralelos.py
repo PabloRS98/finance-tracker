@@ -21,10 +21,22 @@ from app.services import scheduler
 def cartera(db_factory=None):
     """Se construye sobre la base real del scheduler, que usa SessionLocal."""
     from app.database import Base, SessionLocal, engine
+    from app.models import Usuario
+    from app.multiusuario import fijar_usuario
 
     Base.metadata.create_all(engine)
     sesion = SessionLocal()
     sesion.query(Asset).delete()
+
+    # Los activos necesitan dueño: se fija en la sesión y el resto se rellena
+    # solo, que es justo lo que hace el mecanismo de aislamiento.
+    usuario = sesion.query(Usuario).first()
+    if usuario is None:
+        usuario = Usuario(nombre="Yo")
+        sesion.add(usuario)
+        sesion.commit()
+    fijar_usuario(sesion, usuario.id)
+
     for i in range(6):
         sesion.add(Asset(
             name="ACCION %d" % i, asset_type=AssetType.ACCION, ticker="TCK%d" % i,

@@ -1,8 +1,9 @@
 # finance-tracker
 
 **Versión 1.0** · Tracker de patrimonio e ingresos/gastos personales.
-Local-first, mono-usuario y sin APIs de pago: los precios salen de fuentes
-públicas gratuitas y todo vive en un único SQLite dentro de un volumen Docker.
+Local-first y sin APIs de pago: los precios salen de fuentes públicas gratuitas
+y todo vive en un único SQLite dentro de un volumen Docker. Admite varias
+personas en casa, cada una con sus datos aparte.
 
 **Stack**: FastAPI · SQLAlchemy 2.0 · SQLite · Jinja2 · Chart.js (vendorizado, sin build step).
 
@@ -99,6 +100,24 @@ curl -s localhost:8001/salud
 `/salud` consulta la base de verdad: si devuelve `503` con `esquema
 desactualizado` o `consulta de prueba fallida`, la app está arrancada pero no
 puede servir páginas, y el detalle está en `docker compose logs`.
+
+## Cuentas de casa
+
+La primera vez, la app pide crear una cuenta y entrar con ella. A partir de ahí
+cada persona ve **solo lo suyo**: sus activos, sus operaciones, sus gastos, sus
+categorías, sus alertas y su patrimonio. No hay nada compartido ni forma de ver
+los datos de otra cuenta; tampoco hay administrador.
+
+La contraseña es **opcional**. Sin ella, esa cuenta entra con un clic. Se pone,
+se cambia o se quita desde Ajustes en cualquier momento.
+
+Eso protege de que alguien de casa abra tus cuentas por error, no de un tercero
+en la red: elegir un nombre en una lista no es una credencial. Quien saque la app
+de `localhost` necesita **además** `ENABLE_AUTH` (ver abajo), que es una puerta
+delante de todo lo demás.
+
+Al actualizar desde una versión anterior no hay que hacer nada: la migración crea
+la primera cuenta y le asigna todo lo que ya había.
 
 ## Configuración
 

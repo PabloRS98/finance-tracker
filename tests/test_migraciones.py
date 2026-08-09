@@ -87,6 +87,12 @@ def test_se_puede_consultar_tras_migrar(engine_temporal):
 
     session = sessionmaker(bind=engine_temporal)()
     try:
+        # La migración a multiusuario deja creado el primer usuario y le asigna
+        # todo lo que hubiera; un alta posterior necesita decir de quién es.
+        from app.models import Usuario
+        from app.multiusuario import fijar_usuario
+
+        fijar_usuario(session, session.query(Usuario).one().id)
         session.add(Asset(name="Piso", asset_type=AssetType.OTRO,
                           currency=Currency.EUR, manual_value=1000))
         session.commit()

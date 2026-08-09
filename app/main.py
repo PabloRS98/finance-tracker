@@ -6,12 +6,16 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .auth import verify_auth
+# Importado por su efecto: registra los dos enganches del ORM que aíslan a cada
+# usuario. Sin este import el filtrado no existe, así que va aquí y no dentro de
+# una función.
+from . import multiusuario  # noqa: F401
+from .auth import usuario_actual
 from .config import settings
 from .csrf import issue_token, set_cookie, verify_csrf
 from .database import SessionLocal, get_db, revision_pendiente
@@ -26,6 +30,7 @@ from .routers import (
     operations,
     recurring,
     transactions,
+    usuarios,
 )
 from .services.recurring import generate_due_transactions
 from .services.scheduler import snapshot_net_worth, start_scheduler, update_all_prices
@@ -46,14 +51,19 @@ DEFAULT_CATEGORIES = [
 
 
 def seed_categories() -> None:
-    db = SessionLocal()
-    try:
+    """Las categorías por defecto, para cada persona.
+
+    Por usuario y no una vez: las categorías son datos suyos —cada uno las
+    renombra, les pone presupuesto o las borra— y una lista compartida
+    convertiría el gasto de uno en categoría del otro. Quien ya tenga alguna no
+    se toca: es su lista, no la nuestra."""
+    from .multiusuario import por_cada_usuario
+
+    for _usuario_id, db in por_cada_usuario():
         if db.query(Category).count() == 0:
             for name, keywords in DEFAULT_CATEGORIES:
                 db.add(Category(name=name, keywords=keywords))
             db.commit()
-    finally:
-        db.close()
 
 
 def comprobar_esquema() -> None:
@@ -192,6 +202,8 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     return response
 
 
+# El de usuarios va primero: es el único que no exige haber elegido uno.
+app.include_router(usuarios.router)
 app.include_router(dashboard.router)
 app.include_router(assets.router)
 app.include_router(operations.router)
@@ -288,6 +300,14 @@ def health(response: Response, db: Session = Depends(get_db)):
 @app.exception_handler(StarletteHTTPException)
 async def error_http(request: Request, exc: StarletteHTTPException):
     """404 y demás errores HTTP con la cara de la app, no el texto plano de Starlette."""
+    # Una redirección lanzada desde una dependencia llega aquí como excepción:
+    # es la única forma de que `usuario_actual` mande a /entrar sin que cada
+    # vista tenga que ocuparse. Sin este caso, el manejador se comía la cabecera
+    # `Location` y devolvía una página de error en vez de redirigir.
+    destino = (exc.headers or {}).get("Location")
+    if destino:
+        return RedirectResponse(destino, status_code=exc.status_code)
+
     if exc.status_code == 404:
         return _pagina_error(request, 404, "Esta página no existe",
                              "El enlace es antiguo o la dirección está mal escrita.")
@@ -308,7 +328,7 @@ async def error_no_controlado(request: Request, exc: Exception):
     )
 
 
-@app.post("/api/refresh-prices", dependencies=[Depends(verify_auth)])
+@app.post("/api/refresh-prices", dependencies=[Depends(usuario_actual)])
 async def refresh_prices():
     await run_in_threadpool(update_all_prices)
     return {"status": "ok", "message": "Precios actualizados"}

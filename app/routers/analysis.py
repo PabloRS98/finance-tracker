@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
@@ -19,7 +19,7 @@ from ..services.rendimiento import rendimiento_por_ano, xirr_de_la_cartera
 from ..services.xray import allocations, xray_checks
 from ..templating import templates
 
-router = APIRouter(prefix="/analisis", tags=["analisis"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/analisis", tags=["analisis"], dependencies=[Depends(usuario_actual)])
 
 
 def _fees_summary(db: Session) -> dict:

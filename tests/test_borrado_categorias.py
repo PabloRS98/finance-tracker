@@ -104,8 +104,10 @@ def test_el_aviso_dice_cuantas_quedaron_sin_categoria(client):
 def test_la_migracion_limpia_las_referencias_huerfanas(client):
     """Las filas que ya quedaron colgando de borrados anteriores."""
     client.db.execute(text(
-        "INSERT INTO transactions (date, amount, type, description, category_id, status, source, created_at) "
-        "VALUES ('2026-01-01', 10, 'gasto', 'huerfana', 9999, 'confirmado', 'manual', '2026-01-01 00:00:00')"
+        "INSERT INTO transactions "
+        "(usuario_id, date, amount, type, description, category_id, status, source, created_at) "
+        "VALUES (1, '2026-01-01', 10, 'gasto', 'huerfana', 9999, 'confirmado', 'manual', "
+        "'2026-01-01 00:00:00')"
     ))
     client.db.commit()
 

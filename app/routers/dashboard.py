@@ -12,7 +12,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
@@ -35,7 +35,7 @@ from ..services.scheduler import backup_database, compute_net_worth
 from ..services.xray import invested_rows
 from ..templating import templates
 
-router = APIRouter(tags=["dashboard"], dependencies=[Depends(verify_auth)])
+router = APIRouter(tags=["dashboard"], dependencies=[Depends(usuario_actual)])
 
 CERO = Decimal("0")
 

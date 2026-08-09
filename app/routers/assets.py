@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from sqlalchemy.orm import Session, selectinload
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..config import settings
 from ..database import SessionLocal, get_db
 from ..flash import redirect_flash
@@ -32,7 +32,7 @@ from ..services.portfolio import (
 )
 from ..templating import templates
 
-router = APIRouter(prefix="/activos", tags=["activos"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/activos", tags=["activos"], dependencies=[Depends(usuario_actual)])
 
 logger = logging.getLogger(__name__)
 
