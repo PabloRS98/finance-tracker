@@ -5,7 +5,7 @@ from math import ceil
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session, joinedload
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptFloat, OptInt
@@ -13,7 +13,7 @@ from ..models import Account, Asset, AssetType, Operation, OperationType, Transa
 from ..services.portfolio import resumen_completo
 from ..templating import templates
 
-router = APIRouter(prefix="/operaciones", tags=["operaciones"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/operaciones", tags=["operaciones"], dependencies=[Depends(usuario_actual)])
 
 PER_PAGE = 50
 

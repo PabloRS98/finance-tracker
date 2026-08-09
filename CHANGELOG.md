@@ -13,6 +13,31 @@ lo que no se deduce leyendo el diff.
 
 ## Sin publicar
 
+### Varias personas, cada una con lo suyo
+
+La app nació mono-usuario. Ahora cada persona de casa tiene su cuenta, con su
+patrimonio, sus gastos y sus categorías aparte. La decisión de fondo fue que los
+datos **no** se comparten: un tracker de patrimonio responde "cuánto tengo", y
+esa pregunta no tiene sentido sumada entre dos.
+
+**La contraseña es opcional, por persona.** Obligar a teclearla varias veces al
+día desde el móvil acaba en una de cuatro letras o en la app abierta
+permanentemente. Sirve para que no se toquen las cuentas entre vosotros; de
+fuera de casa siguen protegiendo el binding a loopback y `ENABLE_AUTH`.
+
+Sustituye al HTTP Basic, que no sabía hacer esto: el navegador manda unas
+credenciales o ninguna, y no hay forma de decirle "para esta persona no pidas
+nada y para esta sí".
+
+**El aislamiento se aplica en un solo sitio.** La alternativa era añadir un
+filtro a los 106 puntos de consulta de la app, y ahí el fallo no es que algo se
+rompa: es que un filtro olvidado enseña el dinero de otra persona sin que nada
+avise. Va en dos enganches del ORM, así que una consulta nueva queda acotada por
+existir, no por acordarse.
+
+Al actualizar no hay que hacer nada: la migración crea la primera cuenta y le
+asigna todo lo que ya había.
+
 Cierre de la auditoría técnica del 6 de agosto de 2026. Cada entrada lleva el ID
 del hallazgo que cierra, para que dentro de seis meses se pueda ir del código al
 motivo sin adivinarlo.

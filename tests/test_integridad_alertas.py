@@ -83,8 +83,8 @@ def test_comprobar_alertas_sobrevive_a_una_huerfana(db):
     db.commit()
 
     db.execute(text(
-        "INSERT INTO alertas (asset_id, tipo, valor, activa, created_at) "
-        "VALUES (9999, 'por_encima', 1.0, 1, '2026-01-01 00:00:00')"
+        "INSERT INTO alertas (usuario_id, asset_id, tipo, valor, activa, created_at) "
+        "VALUES (1, 9999, 'por_encima', 1.0, 1, '2026-01-01 00:00:00')"
     ))
     db.commit()
 
@@ -147,6 +147,8 @@ def test_la_migracion_limpia_los_huerfanos_que_ya_existian(engine_temporal):
             "INSERT INTO assets (id, name, asset_type, currency, created_at) "
             "VALUES (1, 'Vivo', 'accion', 'EUR', '2026-01-01 00:00:00')"
         ))
+        # Sin usuario_id: este test trabaja sobre la revisión ANTERIOR a
+        # multiusuario, donde esa columna todavía no existe.
         conn.execute(text(
             "INSERT INTO alertas (asset_id, tipo, valor, activa, created_at) VALUES "
             "(1, 'por_encima', 1.0, 1, '2026-01-01 00:00:00'), "

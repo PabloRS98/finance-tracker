@@ -425,7 +425,10 @@ class Benchmark(Base):
 
     __tablename__ = "benchmarks"
 
-    __table_args__ = (UniqueConstraint("usuario_id", "clave", name="uq_benchmarks_usuario_clave"), UniqueConstraint("usuario_id", "symbol", name="uq_benchmarks_usuario_symbol"),)
+    __table_args__ = (
+        UniqueConstraint("usuario_id", "clave", name="uq_benchmarks_usuario_clave"),
+        UniqueConstraint("usuario_id", "symbol", name="uq_benchmarks_usuario_symbol"),
+    )
     id: Mapped[int] = mapped_column(primary_key=True)
     # Los índices de comparación son una preferencia, no un dato de mercado.
     usuario_id: Mapped[int] = mapped_column(

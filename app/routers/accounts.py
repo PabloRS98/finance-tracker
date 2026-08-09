@@ -2,12 +2,12 @@
 from fastapi import APIRouter, Depends, Form
 from sqlalchemy.orm import Session
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..database import get_db
 from ..flash import redirect_flash
 from ..models import Account, AccountKind, Asset, Operation
 
-router = APIRouter(prefix="/cuentas", tags=["cuentas"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/cuentas", tags=["cuentas"], dependencies=[Depends(usuario_actual)])
 
 
 @router.post("")

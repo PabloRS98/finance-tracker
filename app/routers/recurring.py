@@ -4,7 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import Importe, OptInt, validar_importe
@@ -18,7 +18,7 @@ from ..services.recurring import (
 )
 from ..templating import templates
 
-router = APIRouter(prefix="/recurrentes", tags=["recurrentes"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/recurrentes", tags=["recurrentes"], dependencies=[Depends(usuario_actual)])
 
 
 @router.get("")

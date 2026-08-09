@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..config import settings
 from ..database import get_db
 from ..flash import redirect_flash
@@ -21,7 +21,7 @@ from ..services.voice_parser import guess_category, parse_voice_operation, parse
 from ..templating import dinero, templates
 from ..uploads import leer_texto_limitado
 
-router = APIRouter(prefix="/transacciones", tags=["transacciones"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/transacciones", tags=["transacciones"], dependencies=[Depends(usuario_actual)])
 
 PER_PAGE = 50
 

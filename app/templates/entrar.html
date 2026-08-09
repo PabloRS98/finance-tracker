@@ -1,0 +1,65 @@
+{# Pantalla de elección de usuario.
+
+   No extiende base.html a propósito: esa plantilla trae la navegación y los
+   totales del patrimonio, y aquí todavía no se sabe de quién son. Pintarla
+   antes de elegir enseñaría cifras de nadie o de quien tocara.
+#}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Entrar · Patrimonio</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ asset_v }}">
+</head>
+<body class="pantalla-entrada">
+<main class="entrada">
+    <h1>¿Quién eres?</h1>
+
+    {% if usuarios %}
+        <ul class="lista-usuarios">
+            {% for u in usuarios %}
+                <li>
+                    <form method="post" action="/entrar" class="tarjeta-usuario">
+                        {{ csrf_input(request) }}
+                        <input type="hidden" name="usuario_id" value="{{ u.id }}">
+                        <span class="avatar" aria-hidden="true">{{ u.nombre[0]|upper }}</span>
+                        <span class="nombre">{{ u.nombre }}</span>
+                        {% if u.pide_password %}
+                            {# Solo se pide a quien la tiene puesta: obligar a todos
+                               a teclear algo es lo que acaba en contraseñas de
+                               cuatro letras. #}
+                            <input type="password" name="password" placeholder="Contraseña"
+                                   autocomplete="current-password" required>
+                        {% endif %}
+                        <button type="submit" class="btn primary">Entrar</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="subtle">Todavía no hay ninguna cuenta. Crea la primera.</p>
+    {% endif %}
+
+    <details class="crear-cuenta" {% if not usuarios %}open{% endif %}>
+        <summary>Crear una cuenta</summary>
+        <form method="post" action="/usuarios">
+            {{ csrf_input(request) }}
+            <label>Nombre
+                <input type="text" name="nombre" maxlength="40" required autocomplete="off">
+            </label>
+            <label>Contraseña <span class="subtle">(opcional)</span>
+                <input type="password" name="password" autocomplete="new-password"
+                       minlength="{{ min_password }}">
+            </label>
+            <p class="subtle">
+                Sin contraseña se entra directo. Sirve para que no se toquen las
+                cuentas entre vosotros, no para protegerlas de fuera de casa.
+            </p>
+            <button type="submit" class="btn">Crear</button>
+        </form>
+    </details>
+</main>
+<script src="/static/js/app.js?v={{ asset_v }}"></script>
+</body>
+</html>

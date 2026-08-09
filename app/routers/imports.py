@@ -10,7 +10,7 @@ from datetime import date as date_cls
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from ..auth import verify_auth
+from ..auth import usuario_actual
 from ..database import get_db
 from ..flash import redirect_flash
 from ..forms import OptInt
@@ -21,7 +21,7 @@ from ..services.nombres import normalizar_nombre
 from ..templating import templates
 from ..uploads import MAX_CSV_BYTES, MAX_PDF_BYTES, leer_limitado
 
-router = APIRouter(prefix="/operaciones/importar", tags=["importar"], dependencies=[Depends(verify_auth)])
+router = APIRouter(prefix="/operaciones/importar", tags=["importar"], dependencies=[Depends(usuario_actual)])
 
 INVERTIBLE = (AssetType.ACCION, AssetType.CRIPTO)
 

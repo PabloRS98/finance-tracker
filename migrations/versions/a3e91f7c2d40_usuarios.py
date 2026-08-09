@@ -48,19 +48,11 @@ CON_DUENO = (
     "pesos_objetivo",
 )
 
-# Los unique que dejan de ser globales. Dos personas pueden tener una cuenta
-# "Revolut" o una categoría "Comida"; antes la segunda reventaba con
-# IntegrityError sin explicar por qué.
-UNIQUES_NUEVOS = {
-    "accounts": [("uq_accounts_usuario_name", ["usuario_id", "name"])],
-    "categories": [("uq_categories_usuario_name", ["usuario_id", "name"])],
-    "net_worth_snapshots": [("uq_snapshots_usuario_date", ["usuario_id", "date"])],
-    "benchmarks": [
-        ("uq_benchmarks_usuario_clave", ["usuario_id", "clave"]),
-        ("uq_benchmarks_usuario_symbol", ["usuario_id", "symbol"]),
-    ],
-    "watchlist": [("uq_watchlist_usuario_ticker", ["usuario_id", "ticker"])],
-}
+# En cinco de ellas, además, los `unique` dejan de ser globales: dos personas
+# pueden tener una cuenta "Revolut" o una categoría "Comida", y antes la segunda
+# reventaba con IntegrityError sin explicar por qué. No hace falta listarlos aquí
+# —salen de `__table_args__` al recrear la tabla desde el modelo—, pero conviene
+# saber que ese cambio ocurre.
 
 
 def _tabla_destino(nombre: str) -> sa.Table:
@@ -94,13 +86,32 @@ def upgrade() -> None:
         op.add_column(tabla, sa.Column("usuario_id", sa.Integer(), nullable=True))
         op.execute("UPDATE %s SET usuario_id = 1" % tabla)
 
-    # Segunda pasada: con la columna ya rellena se puede exigir NOT NULL y
-    # recrear la tabla con su forma definitiva.
+    # Segunda pasada: con la columna ya rellena, se recrea cada tabla con la
+    # forma que declara el modelo — NOT NULL, la clave foránea, el índice y los
+    # unique compuestos salen de ahí, no de una lista escrita a mano.
+    #
+    # `recreate="always"` no es decorativo. Batch mode solo reconstruye la tabla
+    # si alguna operación lo exige, y añadir un índice no lo exige: sin esto,
+    # las seis tablas que no cambian ningún `unique` se quedaban con el
+    # `usuario_id` nullable y sin clave foránea. Lo cazó el test que compara las
+    # migraciones con los modelos, no una lectura del código.
     for tabla in CON_DUENO:
-        with op.batch_alter_table(tabla, copy_from=_tabla_destino(tabla)) as batch:
-            batch.create_index("ix_%s_usuario_id" % tabla, ["usuario_id"])
-            for nombre, columnas in UNIQUES_NUEVOS.get(tabla, []):
-                batch.create_unique_constraint(nombre, columnas)
+        destino = _tabla_destino(tabla)
+        with op.batch_alter_table(tabla, copy_from=destino, recreate="always"):
+            pass
+
+        # Y los índices se rehacen a mano, porque la recreación NO los conserva:
+        # sin esto la migración se llevaba por delante el índice de fecha de
+        # transacciones —el que hace rápido el filtro que más se usa— y el
+        # UNIQUE de pesos_objetivo.asset_id, que además es una restricción, no
+        # solo una optimización. También lo cazó el test de coherencia entre
+        # migraciones y modelos.
+        for indice in sorted(destino.indexes, key=lambda i: i.name):
+            op.create_index(
+                indice.name, tabla,
+                [columna.name for columna in indice.columns],
+                unique=indice.unique,
+            )
 
 
 def downgrade() -> None:

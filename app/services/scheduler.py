@@ -110,16 +110,27 @@ def update_all_prices() -> None:
                         asset.name = market_data.get_crypto_name(asset.ticker) or asset.name
                     asset.last_price_update = utcnow().replace(microsecond=0)
         seguidos = update_watchlist_prices(db)
+        db.commit()
+
         # Las alertas se miran aquí porque es el único momento con cotización
         # nueva; en cualquier otro sitio se evaluarían sobre datos ya vistos.
-        # Van dentro del try para que un fallo de Telegram no impida guardar los
+        #
+        # Y se miran POR USUARIO, no en la sesión sin dueño de arriba. Con una
+        # sola pasada global, las alertas de una persona se enviarían al Telegram
+        # configurado —que es uno solo— con el nombre de un activo que no es
+        # suyo. Es la fuga menos visible de todo el multiusuario.
+        #
+        # Dentro de un try para que un fallo de Telegram no impida guardar los
         # precios que ya se han descargado.
+        disparadas = 0
         try:
-            disparadas = alertas.comprobar_y_enviar(db)
+            from ..multiusuario import por_cada_usuario
+
+            for _usuario_id, db_usuario in por_cada_usuario():
+                disparadas += alertas.comprobar_y_enviar(db_usuario)
+                db_usuario.commit()
         except Exception:
             logger.exception("Fallo al comprobar las alertas de precio")
-            disparadas = 0
-        db.commit()
         logger.info(
             "Precios actualizados (%d activos, %d en seguimiento, %d alertas)",
             len(assets), seguidos, disparadas,
@@ -228,42 +239,47 @@ def sample_intraday(db: Session) -> None:
 
 
 def sample_intraday_job() -> None:
-    db: Session = SessionLocal()
-    try:
+    # Una muestra por persona: con una sesión sin dueño se guardaría un único
+    # punto con el patrimonio de la casa entera, que no es el de nadie.
+    from ..multiusuario import por_cada_usuario
+
+    for _usuario_id, db in por_cada_usuario():
         sample_intraday(db)
-    finally:
-        db.close()
 
 
 def snapshot_net_worth() -> None:
-    db: Session = SessionLocal()
-    try:
-        total = compute_net_worth(db)
-        manual = compute_manual_value(db)
-        # Un snapshot es histórico permanente: si falta algún tipo de cambio el
-        # total estaría incompleto y contaminaría la curva de evolución para
-        # siempre. Mejor un hueco en la serie (el job reintenta) que un dato falso.
-        if not (total.complete and manual.complete):
-            logger.warning(
-                "Snapshot de patrimonio omitido: sin tipo de cambio para %s",
-                ", ".join(sorted(total.missing | manual.missing)),
-            )
-            return
-        today = date.today()
-        existing = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.date == today).first()
-        if existing:
-            existing.total_value = total.total
-            existing.manual_value = manual.total
-            existing.source = SnapshotSource.AUTO
-        else:
-            db.add(NetWorthSnapshot(
-                date=today, total_value=total.total, manual_value=manual.total,
-                source=SnapshotSource.AUTO,
-            ))
-        db.commit()
-        logger.info("Snapshot de patrimonio guardado: %.2f %s", total.total, settings.base_currency)
-    finally:
-        db.close()
+    from ..multiusuario import por_cada_usuario
+
+    for _usuario_id, db in por_cada_usuario():
+        _snapshot_de_uno(db)
+
+
+def _snapshot_de_uno(db: Session) -> None:
+    """El snapshot de UN usuario. La sesión la abre y la cierra quien llama."""
+    total = compute_net_worth(db)
+    manual = compute_manual_value(db)
+    # Un snapshot es histórico permanente: si falta algún tipo de cambio el
+    # total estaría incompleto y contaminaría la curva de evolución para
+    # siempre. Mejor un hueco en la serie (el job reintenta) que un dato falso.
+    if not (total.complete and manual.complete):
+        logger.warning(
+            "Snapshot de patrimonio omitido: sin tipo de cambio para %s",
+            ", ".join(sorted(total.missing | manual.missing)),
+        )
+        return
+    today = date.today()
+    existing = db.query(NetWorthSnapshot).filter(NetWorthSnapshot.date == today).first()
+    if existing:
+        existing.total_value = total.total
+        existing.manual_value = manual.total
+        existing.source = SnapshotSource.AUTO
+    else:
+        db.add(NetWorthSnapshot(
+            date=today, total_value=total.total, manual_value=manual.total,
+            source=SnapshotSource.AUTO,
+        ))
+    db.commit()
+    logger.info("Snapshot de patrimonio guardado: %.2f %s", total.total, settings.base_currency)
 
 
 def refresh_history() -> None:
@@ -277,12 +293,14 @@ def refresh_history() -> None:
 
 
 def generate_recurring() -> None:
-    """Job diario: crea las transacciones recurrentes que hayan vencido."""
-    db: Session = SessionLocal()
-    try:
+    """Job diario: crea las transacciones recurrentes que hayan vencido.
+
+    Por persona: la transacción generada tiene que heredar el dueño de su regla,
+    y con una sesión sin dueño se quedaría sin ninguno."""
+    from ..multiusuario import por_cada_usuario
+
+    for _usuario_id, db in por_cada_usuario():
         generate_due_transactions(db)
-    finally:
-        db.close()
 
 
 def backup_database(dest_path: str | None = None) -> str:
