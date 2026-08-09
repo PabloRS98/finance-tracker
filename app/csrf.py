@@ -1,10 +1,15 @@
 """Protección CSRF por double-submit cookie.
 
-El problema: todas las mutaciones son POST de formulario y la autenticación es
-HTTP Basic, que el navegador reenvía SOLO con las credenciales cacheadas. Una
-página maliciosa abierta en otra pestaña podía hacer un POST a /activos/3/eliminar
-y el navegador lo firmaba por su cuenta. La cookie `flash` lleva SameSite=Lax,
-pero eso no protege nada aquí: la sesión no vive en una cookie.
+El problema: todas las mutaciones son POST de formulario y el navegador los
+manda con las credenciales de la sesión por su cuenta. Una página maliciosa
+abierta en otra pestaña podía hacer un POST a /activos/3/eliminar y quedaba
+firmado sin que el usuario hiciera nada.
+
+Esto nació cuando la autenticación era HTTP Basic, que el navegador reenvía con
+las credenciales cacheadas. Ahora la sesión es una cookie con SameSite=Lax, que
+por sí sola ya frena un POST cross-site — pero se queda: `Lax` no cubre las
+peticiones desde un subdominio del mismo sitio, y una protección que depende de
+un solo atributo se cae entera el día que alguien lo relaja.
 
 La solución: en cada respuesta se emite una cookie `csrftoken` aleatoria. Toda
 petición que modifique estado debe repetir ese mismo valor por un canal que un
