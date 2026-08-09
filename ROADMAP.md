@@ -8,10 +8,19 @@ El detalle del porqué de cada cambio está en [CHANGELOG.md](CHANGELOG.md); las
 decisiones de ingeniería, en [ARQUITECTURA.md](ARQUITECTURA.md).
 
 Objetivo del proyecto: el tracker de patrimonio personal más completo posible
-**sin romper sus principios** — local-first, sin APIs de pago, stack mínimo,
-mono-usuario. Principio de diseño: **limpio en superficie, técnico en
-profundidad**; la primera pantalla de cada sección responde una pregunta y el
-detalle vive un clic más adentro.
+**sin romper sus principios** — local-first, sin APIs de pago, stack mínimo.
+Principio de diseño: **limpio en superficie, técnico en profundidad**; la primera
+pantalla de cada sección responde una pregunta y el detalle vive un clic más
+adentro.
+
+> **Nota (post-1.0).** Aquí ponía también «mono-usuario», y ya no. En una casa
+> con más de una persona la alternativa real no era usar una cuenta cada uno:
+> era mezclar dos patrimonios en la misma base o montar una segunda instancia.
+> El principio que sí se mantiene es el de fondo — cada instalación sigue siendo
+> de una casa, sin registro público, sin roles y sin nada que compartir entre
+> cuentas. Lo que cambió es que dentro de esa casa los datos ya no son de todos.
+> El detalle está en [CHANGELOG.md](CHANGELOG.md) y en
+> [ARQUITECTURA.md](ARQUITECTURA.md).
 
 
 ## Qué entra en la 1.0

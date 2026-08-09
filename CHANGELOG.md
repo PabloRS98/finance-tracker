@@ -35,6 +35,16 @@ rompa: es que un filtro olvidado enseña el dinero de otra persona sin que nada
 avise. Va en dos enganches del ORM, así que una consulta nueva queda acotada por
 existir, no por acordarse.
 
+La barra superior lleva la inicial de la cuenta activa, y detrás está lo único
+que hace falta: poner o quitar la contraseña, y cambiar de persona. Lo primero
+es saber de quién son las cifras que se están mirando.
+
+`ENABLE_AUTH`, cuando está activado, cubre también la pantalla de elegir cuenta.
+No exige cuenta —es la que sirve para tenerla—, pero sí queda detrás de la
+puerta: si no, con la app expuesta cualquiera de la red podía darse de alta sin
+pasar por ella. Fuera se quedan solo los estáticos y `/salud`, que es lo que
+consulta el healthcheck de Docker y no lleva credenciales ni debe llevarlas.
+
 Al actualizar no hay que hacer nada: la migración crea la primera cuenta y le
 asigna todo lo que ya había.
 

@@ -8,12 +8,13 @@ from fastapi import APIRouter, Depends, Form, Request, Response
 from sqlalchemy.orm import Session
 
 from .. import sesion
+from ..auth import acceso_permitido
 from ..database import get_db
 from ..flash import redirect_flash
 from ..models import Usuario
 from ..templating import templates
 
-router = APIRouter(tags=["usuarios"])
+router = APIRouter(tags=["usuarios"], dependencies=[Depends(acceso_permitido)])
 
 MIN_PASSWORD = 4
 

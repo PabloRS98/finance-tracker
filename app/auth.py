@@ -26,13 +26,16 @@ from .config import settings
 from .database import get_db
 from .models import Usuario
 
-# Rutas que no exigen haber elegido usuario: la propia elección, los estáticos y
-# el healthcheck de Docker, que no lleva cookie ni debe llevarla.
-RUTAS_ABIERTAS = ("/entrar", "/salir", "/static", "/salud", "/manifest.webmanifest")
 
-
-def _verificar_acceso_basico(request: Request) -> None:
+def acceso_permitido(request: Request) -> None:
     """Puerta de entrada opcional (ENABLE_AUTH), delante de todo lo demás.
+
+    Las rutas de elegir usuario dependen SOLO de esta, no de `usuario_actual`:
+    son las que sirven para tener usuario, así que no pueden exigirlo. Pero sí
+    quedan detrás de la puerta — si no, con la app expuesta cualquiera de fuera
+    podría darse de alta sin pasar por `ENABLE_AUTH`. Fuera de ella se quedan
+    solo `/static` y `/salud`, que es lo que consulta el healthcheck de Docker
+    y no lleva credenciales ni debe llevarlas.
 
     Se conserva el mecanismo del HTTP Basic con parseo manual y comparación en
     bytes: `secrets.compare_digest` sobre `str` revienta con cualquier tilde, y
@@ -84,7 +87,7 @@ def usuario_actual(request: Request, db: Session = Depends(get_db)) -> Usuario:
     cualquier ruta la herede sin escribir nada: una vista nueva queda protegida
     por existir, no por acordarse.
     """
-    _verificar_acceso_basico(request)
+    acceso_permitido(request)
 
     usuario_id = sesion.leer(request)
     usuario = db.get(Usuario, usuario_id) if usuario_id is not None else None
@@ -100,4 +103,8 @@ def usuario_actual(request: Request, db: Session = Depends(get_db)) -> Usuario:
     from .multiusuario import fijar_usuario
 
     fijar_usuario(db, usuario.id)
+    # Para la plantilla base, que enseña de quién es la sesión y ofrece salir.
+    # Va en request.state y no en el contexto de cada vista: son 30 vistas y
+    # ninguna tiene por qué acordarse de pasarlo.
+    request.state.usuario = usuario
     return usuario

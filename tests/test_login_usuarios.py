@@ -189,3 +189,72 @@ def test_no_se_cambia_la_contraseña_sin_saber_la_actual(client):
 
     client.db.expire_all()
     assert client.db.query(Usuario).one().password_hash == hash_previo
+
+
+# ---------- La puerta de fuera (ENABLE_AUTH) ----------
+
+def test_la_pantalla_de_entrada_queda_detras_de_enable_auth(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "enable_auth", True)
+    monkeypatch.setattr(settings, "auth_username", "admin")
+    monkeypatch.setattr(settings, "auth_password", "una contraseña larga")
+    client.cookies.delete(sesion.COOKIE)
+
+    assert client.get("/entrar").status_code == 401
+
+
+def test_no_se_puede_crear_una_cuenta_desde_fuera_de_la_puerta(client, monkeypatch):
+    """Estas rutas no exigen usuario —son las que sirven para tenerlo—, pero eso
+    no las deja fuera de la puerta: sin esto, con la app expuesta cualquiera de
+    la red podía darse de alta sin pasar por ENABLE_AUTH."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "enable_auth", True)
+    monkeypatch.setattr(settings, "auth_username", "admin")
+    monkeypatch.setattr(settings, "auth_password", "una contraseña larga")
+    client.cookies.delete(sesion.COOKIE)
+
+    respuesta = client.post_form("/usuarios", data={"nombre": "Intruso"},
+                                 follow_redirects=False)
+
+    assert respuesta.status_code == 401
+    assert client.db.query(Usuario).filter_by(nombre="Intruso").count() == 0
+
+
+def test_con_la_puerta_abierta_se_llega_a_elegir(client, monkeypatch):
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "enable_auth", True)
+    monkeypatch.setattr(settings, "auth_username", "admin")
+    monkeypatch.setattr(settings, "auth_password", "una contraseña larga")
+    client.cookies.delete(sesion.COOKIE)
+
+    assert client.get("/entrar", auth=("admin", "una contraseña larga")).status_code == 200
+
+
+# ---------- El menú de cuenta ----------
+
+def test_la_pagina_dice_con_que_cuenta_se_esta(client):
+    """Con varias personas en casa, lo primero es saber de quién son las cifras
+    que se están mirando."""
+    nombre = client.db.query(Usuario).one().nombre
+
+    html = client.get("/").text
+
+    assert "Cuenta de %s" % nombre in html
+
+
+def test_desde_cualquier_pagina_se_puede_salir_y_cambiar_la_contraseña(client):
+    """Las rutas existían pero nada las enlazaba: sin esto no había forma de
+    cerrar sesión ni de ponerse contraseña desde el navegador."""
+    html = client.get("/activos").text
+
+    assert 'action="/salir"' in html
+    assert 'action="/usuarios/password"' in html
+
+
+def test_sin_sesion_la_pantalla_de_entrada_no_ofrece_salir(client):
+    client.cookies.delete(sesion.COOKIE)
+
+    assert 'action="/salir"' not in client.get("/entrar").text
