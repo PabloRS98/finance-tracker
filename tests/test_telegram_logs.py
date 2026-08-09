@@ -12,7 +12,6 @@ activos- y secuestrarlo cambiando su webhook.
 import logging
 
 import httpx
-import pytest
 
 from app.config import settings
 from app.services import telegram
@@ -20,22 +19,10 @@ from app.services import telegram
 TOKEN_DE_MENTIRA = "7123456789:AAHesto-no-es-un-token-real-solo-para-el-test"
 
 
-@pytest.fixture(autouse=True)
-def logger_no_silenciado():
-    """Reactiva el logger de telegram antes de mirar lo que escribe.
-
-    `migrations/env.py` llama a `logging.config.fileConfig()`, que viene con
-    `disable_existing_loggers=True`: al ejecutarse deja `disabled = True` en
-    todos los loggers ya creados. En producción da igual, porque las
-    migraciones corren en el entrypoint, en otro proceso; dentro de la suite,
-    en cambio, estos tests quedaban mudos según qué fichero se hubiera
-    ejecutado antes (test_migraciones.py y test_money.py migran). Anotado como
-    hallazgo FT-X1: aquí solo se neutraliza el efecto, no se arregla la causa.
-    """
-    disabled_previo = telegram.logger.disabled
-    telegram.logger.disabled = False
-    yield
-    telegram.logger.disabled = disabled_previo
+# Aquí había una fixture que reactivaba `telegram.logger` antes de cada test:
+# migrar dentro del proceso lo dejaba `disabled`, así que estos tests pasaban o
+# no según qué fichero se hubiera ejecutado antes. Era un parche sobre el
+# síntoma (FT-X1). Arreglada la causa en migrations/env.py, sobra.
 
 
 def test_el_log_de_telegram_no_contiene_el_token(monkeypatch, caplog):

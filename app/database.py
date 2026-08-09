@@ -89,6 +89,10 @@ def _config_alembic(target):
     config = Config(os.path.join(root, "alembic.ini"))
     config.set_main_option("script_location", os.path.join(root, "migrations"))
     config.set_main_option("sqlalchemy.url", target.url.render_as_string(hide_password=False))
+    # Migrando desde dentro del proceso, el logging lo manda la app: sin esto,
+    # `alembic.ini` reconfiguraba la raíz en WARN y los `logger.info` de `app.*`
+    # se apagaban a partir de la primera migración. Ver migrations/env.py.
+    config.attributes["configure_logger"] = False
     return config
 
 

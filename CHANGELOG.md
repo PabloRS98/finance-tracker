@@ -13,6 +13,26 @@ lo que no se deduce leyendo el diff.
 
 ## Sin publicar
 
+### [FT-X1] Migrar dentro del proceso dejaba muda a la app
+
+Al aplicar migraciones desde el propio proceso —`init_db()`, o la suite—,
+`migrations/env.py` reconfiguraba el logging entero desde `alembic.ini`. Eso
+hacía dos cosas, y la segunda es peor que la primera: apagaba todos los loggers
+que ya existían, y dejaba la raíz en `WARN`, que es el nivel que ese fichero
+declara. A partir de ahí, todos los `logger.info` de la app desaparecían.
+
+Lo que se pierde no es funcionalidad: es el aviso de que algo va mal. Precios
+que no se actualizan, un envío de Telegram que falla, una alerta que no sale.
+Todo sigue "funcionando" y en silencio.
+
+En la suite el efecto era que unos tests apagaban a otros según el orden. Se
+había parcheado reactivando el logger a mano en los tests afectados; ese parche
+desaparece ahora, que es la forma de comprobar que la causa está arreglada.
+
+El logging de `alembic.ini` se queda como está para la línea de órdenes y el
+entrypoint del contenedor, que es donde tiene sentido. Cuando quien migra es la
+app, el logging lo manda la app.
+
 ### Varias personas, cada una con lo suyo
 
 La app nació mono-usuario. Ahora cada persona de casa tiene su cuenta, con su
