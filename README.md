@@ -1,73 +1,71 @@
 # finance-tracker
 
-**Versión 1.0** · Tracker de patrimonio e ingresos/gastos personales.
-Local-first y sin APIs de pago: los precios salen de fuentes públicas gratuitas
-y todo vive en un único SQLite dentro de un volumen Docker. Admite varias
-personas en casa, cada una con sus datos aparte.
+[![Tests](https://github.com/PabloRS98/finance-tracker/actions/workflows/tests.yml/badge.svg)](https://github.com/PabloRS98/finance-tracker/actions/workflows/tests.yml)
+[![Container Smoke Tests](https://github.com/PabloRS98/finance-tracker/actions/workflows/despliegue.yml/badge.svg)](https://github.com/PabloRS98/finance-tracker/actions/workflows/despliegue.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Stack**: FastAPI · SQLAlchemy 2.0 · SQLite · Jinja2 · Chart.js (vendorizado, sin build step).
+**Version 1.0** · Personal net worth, portfolio, and income/expense tracker.
+Local-first with no paid APIs: prices come from free public data sources and
+everything lives in a single SQLite database inside a Docker volume. Supports
+multiple household profiles, each with isolated data.
 
-| Documento | Para qué |
+**Stack**: FastAPI · SQLAlchemy 2.0 · SQLite · Jinja2 · Chart.js (vendored, zero build step).
+
+| Document | Purpose |
 |---|---|
-| Este README | Instalar, configurar y usar |
-| [CHANGELOG.md](CHANGELOG.md) | Qué cambió y **por qué** |
-| [ROADMAP.md](ROADMAP.md) | Qué se dejó fuera a propósito y qué deuda se asume |
-| [ARQUITECTURA.md](ARQUITECTURA.md) | Las decisiones de ingeniería y los fallos que las provocaron |
+| This README | Install, configure, and run |
+| [CHANGELOG.md](CHANGELOG.md) | What changed and **why** *(ES)* |
+| [ROADMAP.md](ROADMAP.md) | Intentional scope boundaries and accepted debt *(ES)* |
+| [ARQUITECTURA.md](ARQUITECTURA.md) | Engineering decisions and the incidents behind them *(ES)* |
 
-## Qué hace
+## Features
 
-- **Patrimonio**: activos de cuatro tipos (cuenta bancaria, acción/ETF/fondo,
-  cripto, inmueble/otro) valorados en una moneda base común, con evolución
-  histórica diaria e intradía y un mapa de la cartera (superficie = peso,
-  color = variación del día).
-- **Inversión**: posiciones derivadas de operaciones de compra/venta, con coste
-  medio, P&L realizado y no realizado, y descomposición del efecto divisa.
-- **Rendimiento**: TWR (mide la estrategia), XIRR (mide tu dinero: pondera cada
-  aportación por el tiempo que lleva trabajando), CAGR, y rentabilidad por año
-  natural comparada con los índices que elijas.
-- **Ingresos y gastos**: transacciones con categorías, presupuestos por categoría,
-  reglas recurrentes con catch-up, e importación desde CSV del banco.
-- **Importadores** de operaciones: Trade Republic, Revolut (CSV y PDF), OKX y un
-  formato genérico, con deduplicación por huella.
-- **Análisis**: allocations por divisa/región/sector, comisiones acumuladas y un
-  X-Ray de riesgos (concentración, exposición a divisa, precios estancados).
-- **Rebalanceo**: peso objetivo por activo, desviación en dinero y reparto de una
-  aportación entre lo que va por debajo. No propone ventas: rebalancea comprando.
-- **Alertas de precio** por Telegram: precio objetivo por encima o por debajo, y
-  caída diaria mayor de un porcentaje. Avisan una vez y se rearman al dejar de
-  cumplirse.
-- **Higiene de cartera**: detección de activos duplicados (el mismo valor
-  comprado en dos brókers acaba como dos activos) con fusión guiada, y desglose
-  de la posición por cuenta. Lo vendido entero se aparta a "posiciones cerradas",
-  fuera de los totales pero con su historial y su P&L realizado intactos: un
-  traspaso de bróker deja las dos etapas y ninguna es un duplicado de la otra.
-- **Watchlist**: seguir el precio de valores que aún no tienes, sin que entren
-  en el patrimonio.
-- **Entrada por voz** en español, en el navegador y por Telegram, con confirmación
-  previa antes de aplicar nada.
+- **Net worth**: four asset classes (bank accounts, equities/ETFs/funds, crypto,
+  real estate/other) valued in a shared base currency, with daily & intraday
+  history and a portfolio treemap (area = weight, color = daily move).
+- **Investments**: positions derived from buy/sell trades with average cost
+  basis, realized and unrealized P&L, and FX impact breakdown.
+- **Performance**: TWR (measures strategy), XIRR (measures your capital by
+  weighting every cash flow by time), CAGR, and calendar-year returns compared
+  against chosen benchmarks.
+- **Income & expenses**: categorized transactions, category budgets, recurring
+  rules with catch-up, and bank CSV import.
+- **Trade importers**: Trade Republic, Revolut (CSV & PDF), OKX, and a generic
+  format, with fingerprint-based deduplication.
+- **Analytics**: allocations by currency/region/sector, cumulative fees, and a
+  risk X-Ray (concentration, FX exposure, stale prices).
+- **Rebalancing**: target weight per asset, cash deviation, and contribution
+  allocation toward underweight holdings (buys only, never suggests sells).
+- **Telegram price alerts**: target prices above/below and daily drop percentage
+  thresholds; alerts fire once and re-arm when conditions reset.
+- **Portfolio hygiene**: duplicate asset detection (same security bought across
+  two brokers) with guided merge, per-account position breakdown, and closed
+  positions moved out of active totals while preserving full P&L history.
+- **Watchlist**: track prices for securities you don't hold yet without
+  affecting net worth totals.
+- **Spanish voice entry**: via browser or Telegram, with explicit confirmation
+  before applying changes.
 
-## Puesta en marcha
+## Getting Started
 
-### Docker (recomendado)
+### Docker (recommended)
 
 ```bash
-cp .env.example .env       # opcional: sin .env arranca con los valores por defecto
+cp .env.example .env       # optional: starts with sensible defaults without .env
 docker compose up -d --build
 ```
 
-La app queda en <http://localhost:8001> (cámbialo con `FINANCE_PORT`). El volumen
-`finance-tracker_data` guarda la base de datos y los backups diarios: es lo único
-que hay que respaldar.
+The app runs at <http://localhost:8001> (override with `FINANCE_PORT`). The
+`finance-tracker_data` volume stores the SQLite database and daily backups —
+that's the only volume you need to back up.
 
-El puerto se publica **solo en loopback**: desde otra máquina no se alcanza. Para
-usarla desde el móvil en la LAN hay que decidirlo, poniendo `FINANCE_BIND=0.0.0.0`
-en el `.env` — y entonces `ENABLE_AUTH=true` con una contraseña de verdad, porque
-lo que hay al otro lado es el patrimonio entero.
+The port binds to **loopback only** (`127.0.0.1`) by default. To reach it from
+a phone on your LAN, set `FINANCE_BIND=0.0.0.0` in `.env` and enable
+`ENABLE_AUTH=true` with a strong password.
 
-El contenedor arranca como root solo el tiempo justo de que el entrypoint ajuste
-la propiedad de `/data` —un volumen que ya existe conserva la suya, y el `chown`
-del build no le llega— y acto seguido baja a un usuario sin privilegios. La app
-nunca corre como root.
+The container starts as root just long enough for the entrypoint to fix
+ownership on `/data` (existing Docker volumes retain prior permissions), then
+drops privileges immediately via `setpriv`. The app never runs as root.
 
 ### Local
 
@@ -75,117 +73,84 @@ nunca corre como root.
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-echo "DB_PATH=./finance.db" >> .env        # fuera de Docker no existe /data
+echo "DB_PATH=./finance.db" >> .env        # /data only exists inside Docker
 uvicorn app.main:app --reload
 ```
 
-### Actualizar
+### Upgrading
 
 ```bash
 git pull && docker compose up -d --build
 ```
 
-No hay pasos manuales. El entrypoint aplica las migraciones pendientes antes de
-arrancar, y una base creada por una versión anterior a Alembic se detecta y se
-pone al día sola. Si una migración falla, el arranque se corta en vez de dejar
-la app sirviendo contra un esquema viejo.
+No manual steps required. The entrypoint runs pending Alembic migrations on
+startup, and databases created before Alembic are detected and upgraded
+automatically. If a migration fails, startup aborts instead of serving against
+a mismatched schema.
 
-Para comprobar que ha ido bien:
+Verify container health:
 
 ```bash
-docker compose ps          # debe decir healthy, no solo "running"
+docker compose ps          # should report healthy, not just running
 curl -s localhost:8001/salud
 ```
 
-`/salud` consulta la base de verdad: si devuelve `503` con `esquema
-desactualizado` o `consulta de prueba fallida`, la app está arrancada pero no
-puede servir páginas, y el detalle está en `docker compose logs`.
+`/salud` runs a live database check: if it returns `503` (`esquema desactualizado`
+or `consulta de prueba fallida`), check `docker compose logs`.
 
-## Cuentas de casa
+## Household Accounts
 
-La primera vez, la app pide crear una cuenta y entrar con ella. A partir de ahí
-cada persona ve **solo lo suyo**: sus activos, sus operaciones, sus gastos, sus
-categorías, sus alertas y su patrimonio. No hay nada compartido ni forma de ver
-los datos de otra cuenta; tampoco hay administrador.
+On first visit, the app prompts you to create an account and sign in. Each
+person sees **only their own** assets, trades, expenses, categories, alerts, and
+net worth — there is no shared view and no admin superuser.
 
-La contraseña es **opcional**. Sin ella, esa cuenta entra con un clic. Se pone,
-se cambia o se quita desde Ajustes en cualquier momento.
+Account passwords are **optional** (one-click login for convenience at home,
+configurable anytime in Settings). If you expose the app beyond `localhost`,
+you **must** also enable `ENABLE_AUTH` in `.env` as a perimeter gate.
 
-Eso protege de que alguien de casa abra tus cuentas por error, no de un tercero
-en la red: elegir un nombre en una lista no es una credencial. Quien saque la app
-de `localhost` necesita **además** `ENABLE_AUTH` (ver abajo), que es una puerta
-delante de todo lo demás.
+## Configuration
 
-Al actualizar desde una versión anterior no hay que hacer nada: la migración crea
-la primera cuenta y le asigna todo lo que ya había.
+All settings use environment variables (or `.env`), each with a sensible default.
+See [`.env.example`](.env.example) and `app/config.py` for the full list. Key
+security & deployment variables:
 
-## Configuración
-
-Todas las opciones son variables de entorno (o líneas de un `.env`), y todas
-tienen un valor por defecto razonable. La lista completa y comentada está en
-[`.env.example`](.env.example); los campos viven en `app/config.py`.
-
-Lo que conviene revisar antes de exponer la app:
-
-| Variable | Por qué importa |
+| Variable | Why it matters |
 |---|---|
-| `FINANCE_BIND` | Interfaz donde se publica el puerto. `127.0.0.1` por defecto; `0.0.0.0` la abre a toda la LAN. |
-| `ENABLE_AUTH` | Desactivada por defecto. **Actívala** si la app sale de localhost, aunque sea por VPN. |
-| `AUTH_PASSWORD` | El default es `changeme`, y con `ENABLE_AUTH=true` la app **no arranca** con él ni con menos de 8 caracteres. |
-| `DB_PATH` | Debe apuntar a un volumen persistente. |
-| `BASE_CURRENCY` | Moneda de todos los totales. Cambiarla con datos ya cargados no reconvierte lo existente. |
+| `FINANCE_BIND` | Bind address. `127.0.0.1` by default; `0.0.0.0` exposes to the LAN. |
+| `ENABLE_AUTH` | Disabled by default. **Enable it** if reachable outside `localhost`, even over VPN. |
+| `AUTH_PASSWORD` | Defaults to `changeme`; with `ENABLE_AUTH=true` the app refuses to start if left unchanged or under 8 characters. |
+| `DB_PATH` | Must point to a persistent volume. |
+| `BASE_CURRENCY` | Reporting currency for totals. Changing it after loading data does not retroactively convert historical entries. |
 
 ### CSRF
 
-Toda petición que modifique estado exige un token (cookie `csrftoken` +
-campo `_csrf` en los formularios, o cabecera `X-CSRF-Token` en las llamadas
-fetch). Es automático desde el navegador; solo importa si atacas la API a mano:
+Every state-changing request requires a CSRF token (`csrftoken` cookie + `_csrf`
+form field or `X-CSRF-Token` header). Handled automatically in the browser; for
+manual API calls:
 
 ```bash
-# El token sale de cualquier página, y la cookie tiene que viajar de vuelta
 curl -c cookies.txt -s http://localhost:8000/ | grep csrf-token
 curl -b cookies.txt -X POST http://localhost:8000/api/refresh-prices \
-     -H "X-CSRF-Token: <el token>"
+     -H "X-CSRF-Token: <token>"
 ```
 
-Si sirves la app detrás de HTTPS, pon `secure=True` en la cookie
-(`app/csrf.py`). Está en `False` porque en LAN/VPN por HTTP el navegador no
-guardaría una cookie `Secure`.
+If serving behind HTTPS, set `secure=True` on the cookie in `app/csrf.py`.
 
-### Bot de Telegram (opcional)
+### Telegram Bot (optional)
 
-Crea un bot con [@BotFather](https://t.me/BotFather), pon el token en
-`TELEGRAM_BOT_TOKEN` y arranca la app. Escríbele por Telegram: te responderá con
-tu `chat_id` para que lo pongas en `TELEGRAM_CHAT_ID` y reinicies. A partir de
-ahí acepta mensajes de texto y notas de voz («compré 0,5 bitcoin a 54.000»,
-«gasté 25 euros en comida») y manda un resumen diario de la cartera.
+Create a bot with [@BotFather](https://t.me/BotFather), set `TELEGRAM_BOT_TOKEN`,
+and start the app. Message the bot on Telegram to receive your `chat_id`, set
+`TELEGRAM_CHAT_ID`, and restart. Supports text/voice trade & expense commands
+and daily portfolio summaries via long polling (no public webhook needed).
 
-Funciona por long polling: no expone nada a internet ni necesita webhook.
+## Development
 
-## Desarrollo
+### Real Financial Data Policy
 
-### Datos reales
-
-**Este repositorio es público y la app guarda un patrimonio entero.** El
-`.gitignore` cubre lo evidente —la base de datos, el `.env`, los extractos de
-banco en CSV/PDF—, pero eso solo protege los ficheros. Lo que se escapa es la
-prosa: un total de patrimonio en el cuerpo de un PR, la lista de tickers de una
-cartera en una entrada del registro de cambios, el nombre del bróker en un
-mensaje de commit.
-
-No van al repositorio, en ninguna forma:
-
-- Importes reales (patrimonio, valor de una posición, P&L).
-- Tickers, ISINs o nombres de activos que alguien tenga de verdad, ni el recuento
-  de activos u operaciones de una cartera concreta.
-- Brókers y cuentas de una persona.
-
-Para ejemplos, cifras inventadas. Los tickers que aparecen en la interfaz y en
-los tests (`AAPL`, `VWCE.DE`, `bitcoin`) son marcadores de posición genéricos, no
-la cartera de nadie.
-
-Y ojo con dónde queda: un cuerpo de PR se puede editar después, pero un **mensaje
-de commit** ya empujado solo se quita reescribiendo la historia.
+**This repository is public.** `.gitignore` blocks databases, `.env`, and bank
+CSV/PDF statements, and all sample tickers in tests and docs (`AAPL`, `VWCE.DE`,
+`bitcoin`) are synthetic placeholders. Never include real balances, holdings,
+ISINs, or broker account details in commits, PRs, or changelogs.
 
 ### Tests
 
@@ -194,93 +159,65 @@ pip install pytest
 pytest -q
 ```
 
-Los tests no tocan la red ni el volumen `/data`: las APIs externas van
-parcheadas y la base de datos es SQLite en memoria. Hay tres niveles:
+Tests run offline against an in-memory SQLite database with external APIs mocked
+across three layers:
 
-- **Servicios** (`tests/test_*.py`): cálculo de posiciones, histórico,
-  recurrentes, parser de voz, importadores, clasificación, rendimiento.
-- **HTTP contra la app real** (`tests/test_endpoints.py` y compañía): que cada
-  página responda, que la autenticación cubra todas las rutas y que ningún dato
-  guardado pueda romper el HTML.
-- **Sistema visual** (`tests/test_sistema_visual.py`): que los planos de
-  profundidad sigan separándose, que no aparezca un `font-size` suelto en el
-  CSS, que un diálogo no se pinte estando cerrado. No comprueban que sea bonito
-  —eso no se testea— sino que las decisiones que lo sostienen no se deshagan por
-  descuido.
+- **Services** (`tests/test_*.py`): position math, history, recurring rules,
+  voice parser, importers, classification, performance metrics.
+- **HTTP integration** (`tests/test_endpoints.py`, etc.): route responses, auth
+  enforcement across every endpoint, HTML escaping.
+- **Visual invariants** (`tests/test_sistema_visual.py`): enforces CSS design
+  system constraints and dialog visibility rules.
 
-### Integración continua
+### Continuous Integration
 
-Dos workflows, tres checks:
+Two workflows, four checks:
 
-| Check | Qué hace |
+| Check | Purpose |
 |---|---|
 | `lint` | `ruff check .` |
-| `pytest` | La suite completa, midiendo cobertura |
-| `auditoria` | `pip-audit` sobre las dependencias declaradas |
-| `contenedor` | Construye la imagen y la levanta |
+| `pytest` | Full test suite with `--cov-fail-under=74` |
+| `auditoria` | `pip-audit` against `requirements.txt` |
+| `contenedor` | Builds Docker image and tests empty volume, pre-Alembic DB upgrade, root-owned `/data` recovery, non-root PID 1, and `/salud` 503 failure detection |
 
-La cobertura está en el **74 %**, y el CI falla si baja de ahí. El umbral es el
-valor medido, no un objetivo: existe para que no se erosione sin que nadie lo
-note, que es exactamente lo que pasa cuando se mide y no se fija. Lo más flojo
-es lo que no se puede probar sin red ni ficheros reales —el parser de PDF de
-Revolut (11 %), la transcripción de voz (33 %)— y los routers con más ramas de
-formulario.
+### Migrations
 
-El último es el que más ha valido la pena: los dos incidentes graves del
-proyecto no estaban en el código sino en el despliegue, así que ese job levanta
-el contenedor contra un volumen vacío, contra una base anterior a Alembic y
-contra un `/data` en manos de root, exigiendo contenedor sano, las once rutas en
-200 y la app corriendo sin privilegios. El porqué, en
-[ARQUITECTURA.md](ARQUITECTURA.md).
-
-### Migraciones
-
-El esquema se versiona con Alembic:
+Schema changes are managed with Alembic:
 
 ```bash
-alembic upgrade head                          # aplicar las pendientes
-alembic revision --autogenerate -m "..."      # crear una nueva tras tocar models.py
+alembic upgrade head
+alembic revision --autogenerate -m "..."
 ```
 
-La app aplica `upgrade head` sola al arrancar, así que en uso normal no hay que
-ejecutar nada a mano.
+The app runs `alembic upgrade head` automatically on startup. Never run
+`alembic stamp head` on a legacy pre-Alembic database — `init_db()` detects and
+upgrades it automatically.
 
-> **Bases anteriores a Alembic** (creadas con el `ensure_columns` de las primeras
-> versiones): no hay que hacer nada. `init_db()` las detecta —no tienen tabla
-> `alembic_version`—, les completa las columnas que les falten, las marca en la
-> revisión inicial y sigue con el resto de migraciones.
->
-> No ejecutes `alembic stamp head` sobre una base así: la daría por actualizada
-> y se saltaría migraciones que sí necesita, dejando la app con errores de
-> "no such column" en todas las páginas.
+## Data & Backups
 
-## Datos y backups
+- A daily job writes consistent SQLite backups to `<DB_PATH dir>/backups/finance-YYYYMMDD.db`
+  and rotates older files according to `BACKUP_KEEP`.
+- Fresh backups can also be downloaded from the dashboard UI.
+- Transactions can be exported to CSV from `/transacciones`.
 
-- Un job diario copia la BD a `<dir de DB_PATH>/backups/finance-AAAAMMDD.db`
-  usando la API de backup de SQLite (consistente aunque haya escrituras) y rota
-  las copias antiguas según `BACKUP_KEEP`.
-- El dashboard tiene un botón para descargar un backup fresco.
-- Las transacciones se pueden exportar a CSV desde `/transacciones`.
+## Data Sources
 
-## Fuentes de datos
+All public, no API keys required:
 
-Todas públicas y sin API key:
-
-| Fuente | Para qué |
+| Source | Usage |
 |---|---|
-| [Frankfurter](https://frankfurter.dev) (BCE) | Tipos de cambio, actuales e históricos |
-| Yahoo Finance (endpoint de gráficas) | Precios y cierres de acciones/ETFs/fondos y benchmarks |
-| [CoinGecko](https://coingecko.com) | Precios e histórico de criptomonedas |
+| [Frankfurter](https://frankfurter.dev) (ECB) | Current and historical FX rates |
+| Yahoo Finance (chart API) | Stock/ETF/fund prices and benchmark indices |
+| [CoinGecko](https://coingecko.com) | Crypto prices and history |
 
-Si una fuente falla, la app **no** inventa valores: los activos que no puede
-convertir quedan fuera de los totales y se avisa en pantalla, y los snapshots
-históricos incompletos no se guardan.
+If a source is unavailable, the app never fabricates prices: unconvertible assets
+are excluded from totals with an on-screen warning, and incomplete historical
+snapshots are skipped.
 
-## Licencia
+## License
 
-MIT, en [`LICENSE`](LICENSE).
+MIT — see [`LICENSE`](LICENSE).
 
-El repositorio incluye además Chart.js y los iconos de Lucide (ambos MIT) y la
-fuente Inter (SIL Open Font License 1.1), vendorizados para que la app funcione
-sin build step y sin depender de una CDN. Cada uno conserva su licencia: el
-detalle está en [`NOTICE`](NOTICE).
+Vendored assets (Chart.js and Lucide icons under MIT, Inter font under SIL Open
+Font License 1.1) are included so the app works offline with no CDN or build
+step. See [`NOTICE`](NOTICE) for full attributions.

@@ -48,8 +48,10 @@ build/
 # Docker
 docker-compose.override.yml
 
-# IDE
+# IDE & local AI agent state
 .vscode/
 .idea/
+.claude/
+.freebuff/
 *.swp
 *.swo
