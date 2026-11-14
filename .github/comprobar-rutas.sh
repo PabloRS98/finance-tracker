@@ -31,8 +31,8 @@ curl -s -c "$galletas" -b "$galletas" -o /dev/null \
 # hecho que sea el 1: la migración de una base con datos ya crea una cuenta, así
 # que en una actualización esta es la segunda.
 id_ci=$(curl -s -b "$galletas" "$base/entrar" | tr '<' '\n' | awk -F'"' '
-    /name="usuario_id" value=/ { id = $6 }
-    /span class="nombre">CI$/  { print id; exit }
+    /name="usuario_id" value=/ && !found { id = $6 }
+    /span class="nombre">CI$/ && !found { print id; found = 1 }
 ')
 if [ -z "$id_ci" ]; then
     echo "no se pudo crear la cuenta de prueba: no aparece en /entrar"
